@@ -14,7 +14,7 @@ function DoctorDashboard({ user }) {
     frequency: '',
     duration: '',
     side_effects: '',
-    guide_ipfs_hash: ''
+    guide_pdf_file: null
   });
 
   // Prescription form state
@@ -54,9 +54,22 @@ function DoctorDashboard({ user }) {
     e.preventDefault();
     setLoading(true);
     try {
+      let pdfData = null;
+      let pdfName = null;
+      
+      if (medicineForm.guide_pdf_file) {
+        pdfData = await fileToBytes(medicineForm.guide_pdf_file);
+        pdfName = medicineForm.guide_pdf_file.name;
+      }
+      
       const result = await MedSeal_backend.add_medicine({
-        ...medicineForm,
-        guide_ipfs_hash: medicineForm.guide_ipfs_hash ? [medicineForm.guide_ipfs_hash] : []
+        name: medicineForm.name,
+        dosage: medicineForm.dosage,
+        frequency: medicineForm.frequency,
+        duration: medicineForm.duration,
+        side_effects: medicineForm.side_effects,
+        guide_pdf_data: pdfData ? [pdfData] : [],
+        guide_pdf_name: pdfName ? [pdfName] : []
       });
       
       if ('Ok' in result) {
@@ -66,7 +79,7 @@ function DoctorDashboard({ user }) {
           frequency: '',
           duration: '',
           side_effects: '',
-          guide_ipfs_hash: ''
+          guide_pdf_file: null
         });
         loadMedicines();
         alert('Medicine added successfully!');
@@ -77,6 +90,19 @@ function DoctorDashboard({ user }) {
       alert('Error adding medicine: ' + error.message);
     }
     setLoading(false);
+  };
+
+  const fileToBytes = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const arrayBuffer = reader.result;
+        const bytes = new Uint8Array(arrayBuffer);
+        resolve(bytes);
+      };
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(file);
+    });
   };
 
   const handleCreatePrescription = async (e) => {
@@ -241,13 +267,17 @@ function DoctorDashboard({ user }) {
                         />
                       </div>
                       <div className="mb-3">
-                        <label className="form-label">Guide IPFS Hash (Optional)</label>
+                        <label className="form-label">Guide PDF (Optional)</label>
                         <input
-                          type="text"
+                          type="file"
                           className="form-control"
-                          value={medicineForm.guide_ipfs_hash}
-                          onChange={(e) => setMedicineForm({...medicineForm, guide_ipfs_hash: e.target.value})}
+                          accept=".pdf"
+                          onChange={(e) => setMedicineForm({...medicineForm, guide_pdf_file: e.target.files[0]})}
                         />
+                        <div className="form-text">
+                          <i className="fas fa-info-circle me-1"></i>
+                          Upload a PDF guide for this medicine (optional)
+                        </div>
                       </div>
                       <button type="submit" className="btn btn-primary" disabled={loading}>
                         {loading ? 'Adding...' : 'Add Medicine'}

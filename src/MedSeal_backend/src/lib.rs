@@ -27,7 +27,8 @@ pub struct Medicine {
     pub frequency: String,
     pub duration: String,
     pub side_effects: String,
-    pub guide_ipfs_hash: Option<String>,
+    pub guide_pdf_data: Option<Vec<u8>>, // Store PDF data directly
+    pub guide_pdf_name: Option<String>, // Store PDF filename
     pub created_by: String,
     pub created_at: u64,
 }
@@ -67,7 +68,8 @@ pub struct CreateMedicineRequest {
     pub frequency: String,
     pub duration: String,
     pub side_effects: String,
-    pub guide_ipfs_hash: Option<String>,
+    pub guide_pdf_data: Option<Vec<u8>>,
+    pub guide_pdf_name: Option<String>,
 }
 
 #[derive(CandidType, Deserialize)]
@@ -100,9 +102,11 @@ fn register_user(request: RegisterUserRequest) -> Result<User> {
         return Err("Email already registered".to_string());
     }
     
-    // Validate doctor license number
-    if matches!(request.role, UserRole::Doctor) && request.license_number.is_none() {
-        return Err("License number required for doctors".to_string());
+    // Validate doctor license number - check if role is Doctor and license_number is provided
+    if matches!(request.role, UserRole::Doctor) {
+        if request.license_number.is_none() || request.license_number.as_ref().unwrap().trim().is_empty() {
+            return Err("License number is required for doctors".to_string());
+        }
     }
     
     let user = User {
@@ -162,7 +166,8 @@ fn add_medicine(request: CreateMedicineRequest) -> Result<Medicine> {
         frequency: request.frequency,
         duration: request.duration,
         side_effects: request.side_effects,
-        guide_ipfs_hash: request.guide_ipfs_hash,
+        guide_pdf_data: request.guide_pdf_data,
+        guide_pdf_name: request.guide_pdf_name,
         created_by: caller,
         created_at: time(),
     };
@@ -207,12 +212,22 @@ fn update_medicine(medicine_id: String, request: CreateMedicineRequest) -> Resul
             medicine.frequency = request.frequency;
             medicine.duration = request.duration;
             medicine.side_effects = request.side_effects;
-            medicine.guide_ipfs_hash = request.guide_ipfs_hash;
+            medicine.guide_pdf_data = request.guide_pdf_data;
+            medicine.guide_pdf_name = request.guide_pdf_name;
             
             Ok(medicine.clone())
         } else {
             Err("Medicine not found".to_string())
         }
+    })
+}
+
+// Add new function to get PDF data
+#[ic_cdk::query]
+fn get_medicine_pdf(medicine_id: String) -> Option<Vec<u8>> {
+    MEDICINES.with(|medicines| {
+        medicines.borrow().get(&medicine_id)
+            .and_then(|medicine| medicine.guide_pdf_data.clone())
     })
 }
 

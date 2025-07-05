@@ -1,77 +1,125 @@
 import { useState } from 'react';
 
 function Login({ onLogin, onSwitchToRegister, loading }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
+  const [errors, setErrors] = useState({});
+
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email';
+    }
+    
+    if (!formData.password.trim()) {
+      newErrors.password = 'Password is required';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (email && password) {
-      onLogin(email, password);
+    if (validateForm()) {
+      onLogin(formData.email, formData.password);
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
     }
   };
 
   return (
-    <div className="row justify-content-center align-items-center min-vh-100">
-      <div className="col-md-6 col-lg-4">
-        <div className="card shadow">
-          <div className="card-body p-5">
-            <div className="text-center mb-4">
-              <i className="fas fa-heartbeat text-primary" style={{fontSize: '3rem'}}></i>
-              <h2 className="mt-3 text-primary">MedSeal</h2>
-              <p className="text-muted">Secure Decentralized Health Platform</p>
-            </div>
-            
-            <form onSubmit={handleSubmit}>
-              <div className="mb-3">
-                <label htmlFor="email" className="form-label">Email</label>
-                <input
-                  type="email"
-                  className="form-control"
-                  id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              
-              <div className="mb-3">
-                <label htmlFor="password" className="form-label">Password</label>
-                <input
-                  type="password"
-                  className="form-control"
-                  id="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-              
-              <button 
-                type="submit" 
-                className="btn btn-primary w-100 mb-3"
+    <div className="auth-container">
+      <div className="auth-card">
+        <div className="auth-header">
+          <div className="brand-icon">
+            <i className="fas fa-heartbeat"></i>
+          </div>
+          <h2>Welcome Back</h2>
+          <p>Sign in to your Prescripto account</p>
+        </div>
+        
+        <div className="auth-body">
+          <form onSubmit={handleSubmit}>
+            <div className="mb-4">
+              <label htmlFor="email" className="form-label">
+                <i className="fas fa-envelope me-2"></i>
+                Email Address
+              </label>
+              <input
+                type="email"
+                className={`form-control ${errors.email ? 'is-invalid' : ''}`}
+                id="email"
+                value={formData.email}
+                onChange={(e) => handleInputChange('email', e.target.value)}
+                placeholder="Enter your email"
                 disabled={loading}
-              >
-                {loading ? (
-                  <span>
-                    <span className="spinner-border spinner-border-sm me-2"></span>
-                    Signing In...
-                  </span>
-                ) : (
-                  'Sign In'
-                )}
-              </button>
-            </form>
-            
-            <div className="text-center">
-              <p className="mb-0">Don't have an account?</p>
-              <button 
-                className="btn btn-link p-0"
-                onClick={onSwitchToRegister}
-              >
-                Register here
-              </button>
+              />
+              {errors.email && (
+                <div className="invalid-feedback">{errors.email}</div>
+              )}
             </div>
+            
+            <div className="mb-4">
+              <label htmlFor="password" className="form-label">
+                <i className="fas fa-lock me-2"></i>
+                Password
+              </label>
+              <input
+                type="password"
+                className={`form-control ${errors.password ? 'is-invalid' : ''}`}
+                id="password"
+                value={formData.password}
+                onChange={(e) => handleInputChange('password', e.target.value)}
+                placeholder="Enter your password"
+                disabled={loading}
+              />
+              {errors.password && (
+                <div className="invalid-feedback">{errors.password}</div>
+              )}
+            </div>
+            
+            <button 
+              type="submit" 
+              className="btn btn-primary btn-lg w-100 mb-4"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2"></span>
+                  Signing In...
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-sign-in-alt me-2"></i>
+                  Sign In
+                </>
+              )}
+            </button>
+          </form>
+          
+          <div className="text-center">
+            <p className="text-muted mb-2">Don't have an account?</p>
+            <button 
+              className="btn btn-outline-primary"
+              onClick={onSwitchToRegister}
+              disabled={loading}
+            >
+              <i className="fas fa-user-plus me-2"></i>
+              Create Account
+            </button>
           </div>
         </div>
       </div>

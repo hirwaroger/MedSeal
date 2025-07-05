@@ -19,7 +19,8 @@ type Medicine = record {
     frequency: text;
     duration: text;
     side_effects: text;
-    guide_ipfs_hash: opt text;
+    guide_pdf_data: opt blob;
+    guide_pdf_name: opt text;
     created_by: text; // Doctor ID
     created_at: nat64;
 };
@@ -55,7 +56,8 @@ type CreateMedicineRequest = record {
     frequency: text;
     duration: text;
     side_effects: text;
-    guide_ipfs_hash: opt text;
+    guide_pdf_data: opt blob;
+    guide_pdf_name: opt text;
 };
 
 type CreatePrescriptionRequest = record {
@@ -95,6 +97,7 @@ service : {
     "add_medicine": (CreateMedicineRequest) -> (Result_Medicine);
     "get_doctor_medicines": (text) -> (vec Medicine) query;
     "get_medicine": (text) -> (opt Medicine) query;
+    "get_medicine_pdf": (text) -> (opt blob) query;
     "update_medicine": (text, CreateMedicineRequest) -> (Result_Medicine);
     
     // Prescription Management

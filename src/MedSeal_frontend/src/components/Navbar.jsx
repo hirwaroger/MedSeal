@@ -1,36 +1,76 @@
+import { useEffect } from 'react';
+
 function Navbar({ user, onLogout }) {
+  useEffect(() => {
+    // Initialize Bootstrap dropdown
+    const dropdownElementList = document.querySelectorAll('.dropdown-toggle');
+    if (window.bootstrap) {
+      dropdownElementList.forEach(dropdownToggleEl => {
+        new window.bootstrap.Dropdown(dropdownToggleEl);
+      });
+    }
+  }, []);
+
   return (
-    <nav className="navbar navbar-expand-lg navbar-dark bg-primary">
-      <div className="container-fluid">
-        <a className="navbar-brand" href="#">
+    <nav className="navbar navbar-expand-lg navbar-dark">
+      <div className="container-fluid px-4">
+        <a className="navbar-brand d-flex align-items-center" href="#">
           <i className="fas fa-heartbeat me-2"></i>
-          MedSeal
+          <span>Prescripto</span>
         </a>
         
-        <div className="navbar-nav ms-auto">
+        <div className="d-flex align-items-center">
           <div className="nav-item dropdown">
-            <a 
-              className="nav-link dropdown-toggle" 
-              href="#" 
-              role="button" 
-              data-bs-toggle="dropdown"
+            <button 
+              className="btn nav-link dropdown-toggle d-flex align-items-center text-white border-0 bg-transparent" 
+              type="button"
+              data-bs-toggle="dropdown" 
+              aria-expanded="false"
+              style={{ textDecoration: 'none' }}
             >
-              <i className={`fas ${user.role.Doctor ? 'fa-user-md' : 'fa-user'} me-2`}></i>
-              {user.name}
-            </a>
-            <ul className="dropdown-menu">
+              <div className="me-3">
+                <div className="d-flex align-items-center">
+                  <div className="me-2">
+                    <i className={`fas ${user.role.Doctor ? 'fa-user-md' : 'fa-user'} fa-lg`}></i>
+                  </div>
+                  <div>
+                    <div className="fw-semibold">{user.name}</div>
+                    <div className="small opacity-75">
+                      {user.role.Doctor ? 'Doctor' : 'Patient'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <i className="fas fa-chevron-down"></i>
+            </button>
+            <ul className="dropdown-menu dropdown-menu-end shadow">
               <li>
-                <span className="dropdown-item-text">
-                  <small className="text-muted">
-                    {user.role.Doctor ? 'Doctor' : 'Patient'}
-                  </small>
-                </span>
+                <div className="dropdown-item-text">
+                  <div className="d-flex align-items-center">
+                    <i className="fas fa-envelope me-2 text-muted"></i>
+                    <small className="text-muted">{user.email}</small>
+                  </div>
+                </div>
               </li>
+              {user.role.Doctor && user.license_number && (
+                <li>
+                  <div className="dropdown-item-text">
+                    <div className="d-flex align-items-center">
+                      <i className="fas fa-certificate me-2 text-muted"></i>
+                      <small className="text-muted">License: {user.license_number}</small>
+                    </div>
+                  </div>
+                </li>
+              )}
               <li><hr className="dropdown-divider" /></li>
               <li>
-                <button className="dropdown-item" onClick={onLogout}>
+                <button 
+                  className="dropdown-item text-danger d-flex align-items-center" 
+                  onClick={onLogout}
+                  type="button"
+                >
                   <i className="fas fa-sign-out-alt me-2"></i>
-                  Logout
+                  Sign Out
                 </button>
               </li>
             </ul>
