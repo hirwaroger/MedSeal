@@ -1,0 +1,27 @@
+{
+  "canisters": {
+    "MedSeal_backend": {
+      "candid": "src/MedSeal_backend/MedSeal_backend.did",
+      "package": "MedSeal_backend",
+      "type": "rust"
+    },
+    "MedSeal_frontend": {
+      "dependencies": [
+        "MedSeal_backend"
+      ],
+      "source": [
+        "src/MedSeal_frontend/dist"
+      ],
+      "type": "assets",
+      "workspace": "MedSeal_frontend"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "output_env_file": ".env",
+  "version": 1
+}
