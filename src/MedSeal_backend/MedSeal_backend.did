@@ -1,3 +1,107 @@
+type UserRole = variant {
+    Doctor;
+    Patient;
+};
+
+type User = record {
+    id: text;
+    name: text;
+    email: text;
+    role: UserRole;
+    license_number: opt text; // Only for doctors
+    created_at: nat64;
+};
+
+type Medicine = record {
+    id: text;
+    name: text;
+    dosage: text;
+    frequency: text;
+    duration: text;
+    side_effects: text;
+    guide_ipfs_hash: opt text;
+    created_by: text; // Doctor ID
+    created_at: nat64;
+};
+
+type PrescriptionMedicine = record {
+    medicine_id: text;
+    custom_dosage: opt text;
+    custom_instructions: text;
+};
+
+type Prescription = record {
+    id: text;
+    prescription_code: text; // 6-digit code
+    doctor_id: text;
+    patient_name: text;
+    patient_contact: text;
+    medicines: vec PrescriptionMedicine;
+    additional_notes: text;
+    created_at: nat64;
+    accessed_at: opt nat64;
+};
+
+type RegisterUserRequest = record {
+    name: text;
+    email: text;
+    role: UserRole;
+    license_number: opt text;
+};
+
+type CreateMedicineRequest = record {
+    name: text;
+    dosage: text;
+    frequency: text;
+    duration: text;
+    side_effects: text;
+    guide_ipfs_hash: opt text;
+};
+
+type CreatePrescriptionRequest = record {
+    patient_name: text;
+    patient_contact: text;
+    medicines: vec PrescriptionMedicine;
+    additional_notes: text;
+};
+
+type Result_User = variant {
+    Ok: User;
+    Err: text;
+};
+
+type Result_Medicine = variant {
+    Ok: Medicine;
+    Err: text;
+};
+
+type Result_Prescription = variant {
+    Ok: Prescription;
+    Err: text;
+};
+
+type Result_String = variant {
+    Ok: text;
+    Err: text;
+};
+
 service : {
-    "greet": (text) -> (text) query;
+    // User Management
+    "register_user": (RegisterUserRequest) -> (Result_User);
+    "get_user": (text) -> (opt User) query;
+    "authenticate_user": (text, text) -> (Result_User) query;
+    
+    // Medicine Repository (Doctors only)
+    "add_medicine": (CreateMedicineRequest) -> (Result_Medicine);
+    "get_doctor_medicines": (text) -> (vec Medicine) query;
+    "get_medicine": (text) -> (opt Medicine) query;
+    "update_medicine": (text, CreateMedicineRequest) -> (Result_Medicine);
+    
+    // Prescription Management
+    "create_prescription": (CreatePrescriptionRequest) -> (Result_String);
+    "get_prescription": (text, text) -> (Result_Prescription) query;
+    "get_doctor_prescriptions": (text) -> (vec Prescription) query;
+    
+    // Utility
+    "generate_user_id": () -> (text);
 }
