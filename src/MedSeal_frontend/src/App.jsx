@@ -32,7 +32,17 @@ function App() {
   const handleRegister = async (userData) => {
     setLoading(true);
     try {
-      const result = await MedSeal_backend.register_user(userData);
+      // Format the request data according to the Candid interface
+      const registrationData = {
+        name: userData.name,
+        email: userData.email,
+        role: userData.role,
+        license_number: userData.license_number || "" // Send empty string for patients
+      };
+
+      console.log('Sending registration data:', registrationData); // Debug log
+
+      const result = await MedSeal_backend.register_user(registrationData);
       if ('Ok' in result) {
         setCurrentUser(result.Ok);
         setCurrentView('dashboard');
@@ -41,6 +51,7 @@ function App() {
         alert('Registration failed: ' + result.Err);
       }
     } catch (error) {
+      console.error('Registration error details:', error); // Debug log
       alert('Registration error: ' + error.message);
     }
     setLoading(false);
@@ -73,7 +84,15 @@ function App() {
     }
     
     if (currentView === 'dashboard' && currentUser) {
-      return currentUser.role.Doctor ? 
+      // Debug log to see the user role structure
+      console.log('Current user role:', currentUser.role);
+      
+      // Check if user role is Doctor (handle both possible structures)
+      const isDoctor = currentUser.role === 'Doctor' || 
+                      (typeof currentUser.role === 'object' && currentUser.role.Doctor !== undefined) ||
+                      currentUser.role.Doctor === null;
+      
+      return isDoctor ? 
         <DoctorDashboard user={currentUser} /> : 
         <PatientDashboard user={currentUser} />;
     }

@@ -11,12 +11,17 @@ function Navbar({ user, onLogout }) {
     }
   }, []);
 
+  // Check if user is doctor (handle both possible role structures)
+  const isDoctor = user.role === 'Doctor' || 
+                   (typeof user.role === 'object' && user.role.Doctor !== undefined) ||
+                   user.role.Doctor === null;
+
   return (
     <nav className="navbar navbar-expand-lg navbar-dark">
       <div className="container-fluid px-4">
         <a className="navbar-brand d-flex align-items-center" href="#">
           <i className="fas fa-heartbeat me-2"></i>
-          <span>Prescripto</span>
+          <span>MedSeal</span>
         </a>
         
         <div className="d-flex align-items-center">
@@ -31,12 +36,12 @@ function Navbar({ user, onLogout }) {
               <div className="me-3">
                 <div className="d-flex align-items-center">
                   <div className="me-2">
-                    <i className={`fas ${user.role.Doctor ? 'fa-user-md' : 'fa-user'} fa-lg`}></i>
+                    <i className={`fas ${isDoctor ? 'fa-user-md' : 'fa-user'} fa-lg`}></i>
                   </div>
                   <div>
                     <div className="fw-semibold">{user.name}</div>
                     <div className="small opacity-75">
-                      {user.role.Doctor ? 'Doctor' : 'Patient'}
+                      {isDoctor ? 'Doctor' : 'Patient'}
                     </div>
                   </div>
                 </div>
@@ -52,7 +57,7 @@ function Navbar({ user, onLogout }) {
                   </div>
                 </div>
               </li>
-              {user.role.Doctor && user.license_number && (
+              {isDoctor && user.license_number && user.license_number.trim() !== "" && (
                 <li>
                   <div className="dropdown-item-text">
                     <div className="d-flex align-items-center">

@@ -48,7 +48,7 @@ function Login({ onLogin, onSwitchToRegister, loading }) {
             <i className="fas fa-heartbeat"></i>
           </div>
           <h2>Welcome Back</h2>
-          <p>Sign in to your Prescripto account</p>
+          <p>Sign in to your MedSeal account</p>
         </div>
         
         <div className="auth-body">

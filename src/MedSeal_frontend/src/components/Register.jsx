@@ -51,10 +51,12 @@ function Register({ onRegister, onSwitchToLogin, loading }) {
         name: formData.name.trim(),
         email: formData.email.trim(),
         role: formData.role === 'Doctor' ? { Doctor: null } : { Patient: null },
-        license_number: formData.role === 'Doctor' && formData.license_number.trim() 
-          ? formData.license_number.trim() 
-          : null
+        license_number: formData.role === 'Doctor' ? formData.license_number.trim() : ""
       };
+      
+      console.log('Registration form data:', formData); // Debug log
+      console.log('Sending user data:', userData); // Debug log
+      
       onRegister(userData);
     }
   };
@@ -73,7 +75,7 @@ function Register({ onRegister, onSwitchToLogin, loading }) {
           <div className="brand-icon">
             <i className="fas fa-user-plus"></i>
           </div>
-          <h2>Join Prescripto</h2>
+          <h2>Join MedSeal</h2>
           <p>Create your secure healthcare account</p>
         </div>
         
@@ -179,6 +181,14 @@ function Register({ onRegister, onSwitchToLogin, loading }) {
                       className={`card-body text-center ${formData.role === 'Doctor' ? 'bg-primary text-white' : ''}`}
                       onClick={() => handleInputChange('role', 'Doctor')}
                     >
+                      <input
+                        type="radio"
+                        name="role"
+                        value="Doctor"
+                        checked={formData.role === 'Doctor'}
+                        onChange={() => handleInputChange('role', 'Doctor')}
+                        className="d-none"
+                      />
                       <i className="fas fa-user-md fa-2x mb-2"></i>
                       <h6 className="mb-0">Doctor</h6>
                       <small className={formData.role === 'Doctor' ? 'text-white-50' : 'text-muted'}>
@@ -193,6 +203,14 @@ function Register({ onRegister, onSwitchToLogin, loading }) {
                       className={`card-body text-center ${formData.role === 'Patient' ? 'bg-primary text-white' : ''}`}
                       onClick={() => handleInputChange('role', 'Patient')}
                     >
+                      <input
+                        type="radio"
+                        name="role"
+                        value="Patient"
+                        checked={formData.role === 'Patient'}
+                        onChange={() => handleInputChange('role', 'Patient')}
+                        className="d-none"
+                      />
                       <i className="fas fa-user fa-2x mb-2"></i>
                       <h6 className="mb-0">Patient</h6>
                       <small className={formData.role === 'Patient' ? 'text-white-50' : 'text-muted'}>
@@ -216,7 +234,7 @@ function Register({ onRegister, onSwitchToLogin, loading }) {
                   id="license"
                   value={formData.license_number}
                   onChange={(e) => handleInputChange('license_number', e.target.value)}
-                  placeholder="Enter your medical license number"
+                  placeholder="Enter your medical license number (text or numbers)"
                   disabled={loading}
                 />
                 {errors.license_number && (
@@ -224,7 +242,7 @@ function Register({ onRegister, onSwitchToLogin, loading }) {
                 )}
                 <div className="form-text">
                   <i className="fas fa-info-circle me-1"></i>
-                  Your license will be verified for security purposes
+                  Enter your medical license number or ID (alphanumeric)
                 </div>
               </div>
             )}

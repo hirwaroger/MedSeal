@@ -36,43 +36,74 @@ function PatientDashboard({ user }) {
     setMedicines([]);
 
     try {
-      const result = await MedSeal_backend.get_prescription(prescriptionId, prescriptionCode);
+      console.log('Accessing prescription with ID:', prescriptionId, 'Code:', prescriptionCode);
+      
+      // Ensure the prescription ID and code are strings
+      const idString = String(prescriptionId).trim();
+      const codeString = String(prescriptionCode).trim();
+      
+      console.log('Formatted - ID:', idString, 'Code:', codeString);
+      
+      const result = await MedSeal_backend.get_prescription(idString, codeString);
+      console.log('Prescription result:', result);
       
       if ('Ok' in result) {
-        setCurrentPrescription(result.Ok);
+        const prescriptionData = result.Ok;
+        console.log('Prescription data:', prescriptionData);
+        
+        setCurrentPrescription(prescriptionData);
         
         // Load medicine details
-        const medicinePromises = result.Ok.medicines.map(async (prescMed) => {
-          const medicine = await MedSeal_backend.get_medicine(prescMed.medicine_id);
-          return {
-            ...medicine,
-            custom_dosage: prescMed.custom_dosage || null,
-            custom_instructions: prescMed.custom_instructions
-          };
+        const medicinePromises = prescriptionData.medicines.map(async (prescMed) => {
+          try {
+            console.log('Loading medicine:', prescMed.medicine_id);
+            const medicine = await MedSeal_backend.get_medicine(prescMed.medicine_id);
+            console.log('Medicine loaded:', medicine);
+            return {
+              ...medicine,
+              custom_dosage: prescMed.custom_dosage && prescMed.custom_dosage.length > 0 ? prescMed.custom_dosage[0] : null,
+              custom_instructions: prescMed.custom_instructions
+            };
+          } catch (error) {
+            console.error('Error loading medicine:', prescMed.medicine_id, error);
+            return null;
+          }
         });
         
         const medicineDetails = await Promise.all(medicinePromises);
-        setMedicines(medicineDetails.filter(m => m !== null));
+        const validMedicines = medicineDetails.filter(m => m !== null);
+        console.log('Loaded medicines:', validMedicines);
+        setMedicines(validMedicines);
         
         // Save to history
-        savePrescriptionToHistory(result.Ok);
+        savePrescriptionToHistory(prescriptionData);
         
         // Switch to current prescription tab
         setActiveTab('current');
       } else {
+        console.error('Backend error:', result.Err);
         setError(result.Err);
       }
     } catch (error) {
-      setError('Error accessing prescription: ' + error.message);
+      console.error('Error accessing prescription:', error);
+      // Handle BigInt serialization error specifically
+      if (error.message && error.message.includes('BigInt')) {
+        setError('Data format error. Please try again or contact support.');
+      } else {
+        setError('Error accessing prescription: ' + error.message);
+      }
     }
     setLoading(false);
   };
 
   const handleFullCodeInput = (value) => {
-    if (value.includes('-')) {
-      const [id, code] = value.split('-');
-      setPrescriptionId(id);
-      setPrescriptionCode(code);
+    const cleanValue = value.trim();
+    if (cleanValue.includes('-')) {
+      const parts = cleanValue.split('-');
+      if (parts.length === 2) {
+        setPrescriptionId(parts[0].trim());
+        setPrescriptionCode(parts[1].trim());
+      }
     }
   };
 
@@ -101,21 +132,33 @@ function PatientDashboard({ user }) {
 
   const downloadPrescriptionPDF = async (medicineId, medicineName) => {
     try {
+      console.log('Downloading PDF for medicine:', medicineId);
       const pdfData = await MedSeal_backend.get_medicine_pdf(medicineId);
+      
       if (pdfData && pdfData.length > 0) {
+        console.log('PDF data received, size:', pdfData.length);
         const blob = new Blob([new Uint8Array(pdfData)], { type: 'application/pdf' });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${medicineName}_guide.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        
+        // Try to open in new tab first, fallback to download
+        const newWindow = window.open(url, '_blank');
+        if (!newWindow) {
+          // If popup blocked, download instead
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${medicineName}_guide.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+        
+        // Clean up after a delay
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
       } else {
         alert('No guide available for this medicine');
       }
     } catch (error) {
+      console.error('Error downloading PDF:', error);
       alert('Error downloading guide: ' + error.message);
     }
   };
@@ -365,6 +408,17 @@ function PatientDashboard({ user }) {
                             <strong className="text-muted">Side Effects:</strong>
                             <p className="small text-danger mb-0 mt-1">{medicine.side_effects}</p>
                           </div>
+                          
+                          {medicine.guide_pdf_data && medicine.guide_pdf_data.length > 0 && (
+                            <div className="mt-3">
+                              <button
+                                className="btn btn-outline-primary btn-sm w-100"
+                                onClick={() => downloadPrescriptionPDF(medicine.id, medicine.name)}
+                              >
+                                <i className="fas fa-file-pdf me-2"></i>View Medicine Guide
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

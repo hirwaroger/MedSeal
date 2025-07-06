@@ -15,7 +15,7 @@ pub struct User {
     pub name: String,
     pub email: String,
     pub role: UserRole,
-    pub license_number: Option<String>,
+    pub license_number: String, // Changed from Option<String> to String
     pub created_at: u64,
 }
 
@@ -31,6 +31,7 @@ pub struct Medicine {
     pub guide_pdf_name: Option<String>, // Store PDF filename
     pub created_by: String,
     pub created_at: u64,
+    pub is_active: bool, // New field to track if medicine is active
 }
 
 #[derive(CandidType, Deserialize, Clone, Debug)]
@@ -58,10 +59,10 @@ pub struct RegisterUserRequest {
     pub name: String,
     pub email: String,
     pub role: UserRole,
-    pub license_number: Option<String>,
+    pub license_number: String, // Changed from Option<String> to String
 }
 
-#[derive(CandidType, Deserialize)]
+#[derive(CandidType, Deserialize, Debug)]
 pub struct CreateMedicineRequest {
     pub name: String,
     pub dosage: String,
@@ -72,7 +73,7 @@ pub struct CreateMedicineRequest {
     pub guide_pdf_name: Option<String>,
 }
 
-#[derive(CandidType, Deserialize)]
+#[derive(CandidType, Deserialize, Debug)]
 pub struct CreatePrescriptionRequest {
     pub patient_name: String,
     pub patient_contact: String,
@@ -82,16 +83,19 @@ pub struct CreatePrescriptionRequest {
 
 type Result<T> = std::result::Result<T, String>;
 
+// Add a mapping from principal to user ID
 thread_local! {
     static USERS: RefCell<HashMap<String, User>> = RefCell::new(HashMap::new());
     static MEDICINES: RefCell<HashMap<String, Medicine>> = RefCell::new(HashMap::new());
     static PRESCRIPTIONS: RefCell<HashMap<String, Prescription>> = RefCell::new(HashMap::new());
     static USER_EMAILS: RefCell<HashMap<String, String>> = RefCell::new(HashMap::new()); // email -> user_id
+    static PRINCIPAL_TO_USER: RefCell<HashMap<String, String>> = RefCell::new(HashMap::new()); // principal -> user_id
 }
 
 #[ic_cdk::update]
 fn register_user(request: RegisterUserRequest) -> Result<User> {
     let user_id = generate_user_id();
+    let caller_principal = ic_cdk::caller().to_string();
     
     // Check if email already exists
     let email_exists = USER_EMAILS.with(|emails| {
@@ -104,7 +108,7 @@ fn register_user(request: RegisterUserRequest) -> Result<User> {
     
     // Validate doctor license number - check if role is Doctor and license_number is provided
     if matches!(request.role, UserRole::Doctor) {
-        if request.license_number.is_none() || request.license_number.as_ref().unwrap().trim().is_empty() {
+        if request.license_number.trim().is_empty() {
             return Err("License number is required for doctors".to_string());
         }
     }
@@ -123,8 +127,15 @@ fn register_user(request: RegisterUserRequest) -> Result<User> {
     });
     
     USER_EMAILS.with(|emails| {
-        emails.borrow_mut().insert(request.email, user_id);
+        emails.borrow_mut().insert(request.email, user_id.clone());
     });
+    
+    // Map the caller's principal to the user ID
+    PRINCIPAL_TO_USER.with(|mapping| {
+        mapping.borrow_mut().insert(caller_principal.clone(), user_id.clone());
+    });
+    
+    ic_cdk::println!("Registered user {} with principal {} and user_id {}", user.name, caller_principal, user_id);
     
     Ok(user)
 }
@@ -156,8 +167,26 @@ fn authenticate_user(email: String, _password: String) -> Result<User> {
 
 #[ic_cdk::update]
 fn add_medicine(request: CreateMedicineRequest) -> Result<Medicine> {
-    let caller = ic_cdk::caller().to_string();
+    let caller_principal = ic_cdk::caller().to_string();
+    
+    // Get the user ID associated with this principal
+    let doctor_user_id = PRINCIPAL_TO_USER.with(|mapping| {
+        mapping.borrow().get(&caller_principal).cloned()
+    });
+    
+    let doctor_id = match doctor_user_id {
+        Some(user_id) => user_id,
+        None => {
+            ic_cdk::println!("No user ID found for principal: {}", caller_principal);
+            return Err("User not found. Please register first.".to_string());
+        }
+    };
+    
     let medicine_id = generate_id();
+    
+    // Debug logging
+    ic_cdk::println!("Adding medicine for doctor: {} (principal: {})", doctor_id, caller_principal);
+    ic_cdk::println!("Medicine data: {:?}", request);
     
     let medicine = Medicine {
         id: medicine_id.clone(),
@@ -168,25 +197,95 @@ fn add_medicine(request: CreateMedicineRequest) -> Result<Medicine> {
         side_effects: request.side_effects,
         guide_pdf_data: request.guide_pdf_data,
         guide_pdf_name: request.guide_pdf_name,
-        created_by: caller,
+        created_by: doctor_id.clone(), // Use the user ID, not the principal
         created_at: time(),
+        is_active: true, // New medicines are active by default
     };
     
     MEDICINES.with(|medicines| {
-        medicines.borrow_mut().insert(medicine_id, medicine.clone());
+        medicines.borrow_mut().insert(medicine_id.clone(), medicine.clone());
+        ic_cdk::println!("Medicine stored with ID: {}", medicine_id);
+        ic_cdk::println!("Total medicines count: {}", medicines.borrow().len());
     });
     
     Ok(medicine)
 }
 
+// Add function to toggle medicine status
+#[ic_cdk::update]
+fn toggle_medicine_status(medicine_id: String) -> Result<Medicine> {
+    let caller_principal = ic_cdk::caller().to_string();
+    
+    // Get the user ID associated with this principal
+    let doctor_user_id = PRINCIPAL_TO_USER.with(|mapping| {
+        mapping.borrow().get(&caller_principal).cloned()
+    });
+    
+    let doctor_id = match doctor_user_id {
+        Some(user_id) => user_id,
+        None => {
+            return Err("User not found. Please register first.".to_string());
+        }
+    };
+    
+    MEDICINES.with(|medicines| {
+        let mut medicines_map = medicines.borrow_mut();
+        if let Some(medicine) = medicines_map.get_mut(&medicine_id) {
+            if medicine.created_by != doctor_id {
+                return Err("Unauthorized to modify this medicine".to_string());
+            }
+            
+            medicine.is_active = !medicine.is_active;
+            ic_cdk::println!("Medicine '{}' status changed to: {}", medicine.name, medicine.is_active);
+            
+            Ok(medicine.clone())
+        } else {
+            Err("Medicine not found".to_string())
+        }
+    })
+}
+
 #[ic_cdk::query]
 fn get_doctor_medicines(doctor_id: String) -> Vec<Medicine> {
+    ic_cdk::println!("Getting medicines for doctor: {}", doctor_id);
+    
+    let medicines = MEDICINES.with(|medicines| {
+        let all_medicines: Vec<Medicine> = medicines.borrow().values().cloned().collect();
+        ic_cdk::println!("Total medicines in storage: {}", all_medicines.len());
+        
+        // Debug: print all medicines and their creators
+        for medicine in &all_medicines {
+            ic_cdk::println!("Medicine '{}' created by: '{}'", medicine.name, medicine.created_by);
+        }
+        
+        let filtered_medicines: Vec<Medicine> = all_medicines
+            .into_iter()
+            .filter(|medicine| {
+                let matches = medicine.created_by == doctor_id;
+                ic_cdk::println!("Medicine '{}' matches doctor '{}': {}", medicine.name, doctor_id, matches);
+                matches
+            })
+            .collect();
+        
+        ic_cdk::println!("Filtered medicines count: {}", filtered_medicines.len());
+        filtered_medicines
+    });
+    
+    medicines
+}
+
+// Add a new method to get all medicines for debugging
+#[ic_cdk::query]
+fn get_all_medicines_debug() -> Vec<Medicine> {
     MEDICINES.with(|medicines| {
-        medicines.borrow().values()
-            .filter(|medicine| medicine.created_by == doctor_id)
-            .cloned()
-            .collect()
+        medicines.borrow().values().cloned().collect()
     })
+}
+
+// Add a method to get the current caller for debugging
+#[ic_cdk::query]
+fn get_current_caller() -> String {
+    ic_cdk::caller().to_string()
 }
 
 #[ic_cdk::query]
@@ -198,12 +297,24 @@ fn get_medicine(medicine_id: String) -> Option<Medicine> {
 
 #[ic_cdk::update]
 fn update_medicine(medicine_id: String, request: CreateMedicineRequest) -> Result<Medicine> {
-    let caller = ic_cdk::caller().to_string();
+    let caller_principal = ic_cdk::caller().to_string();
+    
+    // Get the user ID associated with this principal
+    let doctor_user_id = PRINCIPAL_TO_USER.with(|mapping| {
+        mapping.borrow().get(&caller_principal).cloned()
+    });
+    
+    let doctor_id = match doctor_user_id {
+        Some(user_id) => user_id,
+        None => {
+            return Err("User not found. Please register first.".to_string());
+        }
+    };
     
     MEDICINES.with(|medicines| {
         let mut medicines_map = medicines.borrow_mut();
         if let Some(medicine) = medicines_map.get_mut(&medicine_id) {
-            if medicine.created_by != caller {
+            if medicine.created_by != doctor_id {
                 return Err("Unauthorized to update this medicine".to_string());
             }
             
@@ -233,7 +344,20 @@ fn get_medicine_pdf(medicine_id: String) -> Option<Vec<u8>> {
 
 #[ic_cdk::update]
 fn create_prescription(request: CreatePrescriptionRequest) -> Result<String> {
-    let doctor_id = ic_cdk::caller().to_string();
+    let caller_principal = ic_cdk::caller().to_string();
+    
+    // Get the user ID associated with this principal
+    let doctor_user_id = PRINCIPAL_TO_USER.with(|mapping| {
+        mapping.borrow().get(&caller_principal).cloned()
+    });
+    
+    let doctor_id = match doctor_user_id {
+        Some(user_id) => user_id,
+        None => {
+            return Err("User not found. Please register first.".to_string());
+        }
+    };
+    
     let prescription_id = generate_prescription_id();
     let prescription_code = generate_prescription_code();
     
@@ -258,16 +382,29 @@ fn create_prescription(request: CreatePrescriptionRequest) -> Result<String> {
 
 #[ic_cdk::query]
 fn get_prescription(prescription_id: String, code: String) -> Result<Prescription> {
+    ic_cdk::println!("Getting prescription with ID: {} and code: {}", prescription_id, code);
+    
     PRESCRIPTIONS.with(|prescriptions| {
         let mut prescriptions_map = prescriptions.borrow_mut();
+        
+        // Debug: print all prescriptions
+        ic_cdk::println!("Total prescriptions in storage: {}", prescriptions_map.len());
+        for (id, prescription) in prescriptions_map.iter() {
+            ic_cdk::println!("Prescription ID: {}, Code: {}", id, prescription.prescription_code);
+        }
+        
         if let Some(prescription) = prescriptions_map.get_mut(&prescription_id) {
+            ic_cdk::println!("Found prescription, checking code: {} vs {}", prescription.prescription_code, code);
             if prescription.prescription_code == code {
                 prescription.accessed_at = Some(time());
+                ic_cdk::println!("Prescription access granted");
                 Ok(prescription.clone())
             } else {
+                ic_cdk::println!("Invalid prescription code");
                 Err("Invalid prescription code".to_string())
             }
         } else {
+            ic_cdk::println!("Prescription not found");
             Err("Prescription not found".to_string())
         }
     })
@@ -293,14 +430,27 @@ fn generate_id() -> String {
 }
 
 fn generate_prescription_id() -> String {
-    format!("{:06}", (time() % 1000000))
+    // Use a simpler format that doesn't cause BigInt issues
+    let timestamp = time();
+    format!("{:06}", (timestamp % 1000000))
 }
 
 fn generate_prescription_code() -> String {
-    format!("{:06}", ((time() * 7) % 1000000))
+    // Use a simpler format that doesn't cause BigInt issues
+    let timestamp = time();
+    format!("{:06}", ((timestamp * 13) % 1000000))
 }
 
 #[ic_cdk::query]
 fn greet(name: String) -> String {
     format!("Hello, {}!", name)
 }
+
+// Add debug method to check principal mapping
+#[ic_cdk::query]
+fn get_principal_mapping_debug() -> Vec<(String, String)> {
+    PRINCIPAL_TO_USER.with(|mapping| {
+        mapping.borrow().iter().map(|(k, v)| (k.clone(), v.clone())).collect()
+    })
+}
+

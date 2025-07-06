@@ -8,7 +8,7 @@ type User = record {
     name: text;
     email: text;
     role: UserRole;
-    license_number: opt text; // Only for doctors
+    license_number: text; // Required field - empty for patients, license for doctors
     created_at: nat64;
 };
 
@@ -23,6 +23,7 @@ type Medicine = record {
     guide_pdf_name: opt text;
     created_by: text; // Doctor ID
     created_at: nat64;
+    is_active: bool; // New field to track if medicine is active
 };
 
 type PrescriptionMedicine = record {
@@ -47,7 +48,7 @@ type RegisterUserRequest = record {
     name: text;
     email: text;
     role: UserRole;
-    license_number: opt text;
+    license_number: text; // Required field
 };
 
 type CreateMedicineRequest = record {
@@ -99,6 +100,12 @@ service : {
     "get_medicine": (text) -> (opt Medicine) query;
     "get_medicine_pdf": (text) -> (opt blob) query;
     "update_medicine": (text, CreateMedicineRequest) -> (Result_Medicine);
+    "toggle_medicine_status": (text) -> (Result_Medicine);
+    
+    // Debug methods (remove in production)
+    "get_all_medicines_debug": () -> (vec Medicine) query;
+    "get_current_caller": () -> (text) query;
+    "get_principal_mapping_debug": () -> (vec record { text; text }) query;
     
     // Prescription Management
     "create_prescription": (CreatePrescriptionRequest) -> (Result_String);
