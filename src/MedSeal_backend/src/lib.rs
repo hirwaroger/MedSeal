@@ -396,8 +396,13 @@ fn get_prescription(prescription_id: String, code: String) -> Result<Prescriptio
         if let Some(prescription) = prescriptions_map.get_mut(&prescription_id) {
             ic_cdk::println!("Found prescription, checking code: {} vs {}", prescription.prescription_code, code);
             if prescription.prescription_code == code {
-                prescription.accessed_at = Some(time());
-                ic_cdk::println!("Prescription access granted");
+                // Only mark as accessed when retrieved by patient, not when created
+                if prescription.accessed_at.is_none() {
+                    prescription.accessed_at = Some(time());
+                    ic_cdk::println!("Prescription marked as accessed for the first time");
+                } else {
+                    ic_cdk::println!("Prescription was already accessed before");
+                }
                 Ok(prescription.clone())
             } else {
                 ic_cdk::println!("Invalid prescription code");
@@ -412,11 +417,15 @@ fn get_prescription(prescription_id: String, code: String) -> Result<Prescriptio
 
 #[ic_cdk::query]
 fn get_doctor_prescriptions(doctor_id: String) -> Vec<Prescription> {
+    ic_cdk::println!("Getting prescriptions for doctor: {}", doctor_id);
     PRESCRIPTIONS.with(|prescriptions| {
-        prescriptions.borrow().values()
+        let filtered_prescriptions: Vec<Prescription> = prescriptions.borrow().values()
             .filter(|prescription| prescription.doctor_id == doctor_id)
             .cloned()
-            .collect()
+            .collect();
+        
+        ic_cdk::println!("Found {} prescriptions for doctor {}", filtered_prescriptions.len(), doctor_id);
+        filtered_prescriptions
     })
 }
 

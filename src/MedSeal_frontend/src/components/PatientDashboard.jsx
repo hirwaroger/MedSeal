@@ -347,10 +347,10 @@ function PatientDashboard({ user }) {
                         </h6>
                         <p className="mb-2"><strong>ID:</strong> <code>{currentPrescription.id}</code></p>
                         <p className="mb-2"><strong>Doctor ID:</strong> <code>{currentPrescription.doctor_id}</code></p>
-                        {currentPrescription.accessed_at && (
+                        {currentPrescription.accessed_at && currentPrescription.accessed_at.length > 0 && (
                           <p className="mb-0">
                             <strong>First Accessed:</strong> {' '}
-                            {new Date(Number(currentPrescription.accessed_at) / 1000000).toLocaleDateString()}
+                            {new Date(Number(currentPrescription.accessed_at[0]) / 1000000).toLocaleDateString()}
                           </p>
                         )}
                       </div>
@@ -499,9 +499,14 @@ function PatientDashboard({ user }) {
                                   })}
                                 </small>
                               </div>
-                              <span className="badge bg-primary">
-                                {prescription.medicines.length} medicine{prescription.medicines.length !== 1 ? 's' : ''}
-                              </span>
+                              <div className="d-flex flex-column align-items-end">
+                                <span className="badge bg-primary mb-1">
+                                  {prescription.medicines.length} medicine{prescription.medicines.length !== 1 ? 's' : ''}
+                                </span>
+                                <span className={`badge ${prescription.accessed_at && prescription.accessed_at.length > 0 ? 'bg-success' : 'bg-info'}`}>
+                                  {prescription.accessed_at && prescription.accessed_at.length > 0 ? 'Accessed' : 'First Access'}
+                                </span>
+                              </div>
                             </div>
                             
                             <p className="mb-2">

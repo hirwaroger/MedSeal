@@ -250,7 +250,7 @@ function DoctorDashboard({ user }) {
     { id: 'medicines', icon: 'fas fa-pills', label: `Medicine Repository (${medicines.length})` },
     { id: 'add-medicine', icon: 'fas fa-plus-circle', label: 'Add New Medicine' },
     { id: 'prescriptions', icon: 'fas fa-prescription', label: 'Create Prescription' },
-    { id: 'history', icon: 'fas fa-history', label: 'Prescription History' },
+    { id: 'history', icon: 'fas fa-history', label: `Prescription History (${prescriptions.length})` },
   ];
 
   const renderOverviewContent = () => (
@@ -286,7 +286,7 @@ function DoctorDashboard({ user }) {
             <i className="fas fa-user-check"></i>
           </div>
           <div className="stat-content">
-            <h3 className="stat-number">{prescriptions.filter(p => p.accessed_at).length}</h3>
+            <h3 className="stat-number">{prescriptions.filter(p => p.accessed_at && p.accessed_at.length > 0).length}</h3>
             <p className="stat-label">Accessed Prescriptions</p>
           </div>
         </div>
@@ -296,7 +296,7 @@ function DoctorDashboard({ user }) {
             <i className="fas fa-clock"></i>
           </div>
           <div className="stat-content">
-            <h3 className="stat-number">{prescriptions.filter(p => !p.accessed_at).length}</h3>
+            <h3 className="stat-number">{prescriptions.filter(p => !p.accessed_at || p.accessed_at.length === 0).length}</h3>
             <p className="stat-label">Pending Access</p>
           </div>
         </div>
@@ -322,12 +322,15 @@ function DoctorDashboard({ user }) {
                     </small>
                   </div>
                   <div className="activity-status">
-                    <span className={`badge ${prescription.accessed_at ? 'bg-success' : 'bg-warning'}`}>
-                      {prescription.accessed_at ? 'Accessed' : 'Pending'}
+                    <span className={`badge ${prescription.accessed_at && prescription.accessed_at.length > 0 ? 'bg-success' : 'bg-warning'}`}>
+                      {prescription.accessed_at && prescription.accessed_at.length > 0 ? 'Accessed' : 'Pending'}
                     </span>
                   </div>
                 </div>
               ))}
+              {prescriptions.length === 0 && (
+                <p className="text-muted text-center">No prescriptions created yet</p>
+              )}
             </div>
           </div>
         </div>
@@ -774,6 +777,99 @@ function DoctorDashboard({ user }) {
     </div>
   );
 
+  const renderHistoryContent = () => (
+    <div className="dashboard-content">
+      <div className="content-header">
+        <h1 className="content-title">Prescription History</h1>
+        <p className="content-subtitle">View all created prescriptions ({prescriptions.length})</p>
+      </div>
+      
+      <div className="modern-card">
+        <div className="card-body">
+          {prescriptions.length === 0 ? (
+            <div className="empty-state">
+              <i className="fas fa-prescription fa-4x text-muted mb-3"></i>
+              <h4 className="text-muted">No Prescriptions Created</h4>
+              <p className="text-muted">Start creating prescriptions for your patients</p>
+              <button 
+                className="btn btn-primary"
+                onClick={() => setActiveTab('prescriptions')}
+              >
+                <i className="fas fa-plus me-2"></i>Create First Prescription
+              </button>
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table table-hover">
+                <thead>
+                  <tr>
+                    <th>Prescription Code</th>
+                    <th>Patient Name</th>
+                    <th>Contact</th>
+                    <th>Medicines Count</th>
+                    <th>Created</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {prescriptions.map(prescription => (
+                    <tr key={prescription.id}>
+                      <td>
+                        <code className="text-primary">{prescription.id}-{prescription.prescription_code}</code>
+                      </td>
+                      <td>
+                        <strong>{prescription.patient_name}</strong>
+                      </td>
+                      <td>{prescription.patient_contact}</td>
+                      <td>
+                        <span className="badge bg-info">
+                          {prescription.medicines.length} medicine{prescription.medicines.length !== 1 ? 's' : ''}
+                        </span>
+                      </td>
+                      <td>
+                        {new Date(Number(prescription.created_at) / 1000000).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </td>
+                      <td>
+                        <span className={`badge ${prescription.accessed_at && prescription.accessed_at.length > 0 ? 'bg-success' : 'bg-warning'}`}>
+                          {prescription.accessed_at && prescription.accessed_at.length > 0 ? 'Accessed' : 'Pending'}
+                        </span>
+                        {prescription.accessed_at && prescription.accessed_at.length > 0 && (
+                          <div className="text-muted small mt-1">
+                            Accessed: {new Date(Number(prescription.accessed_at[0]) / 1000000).toLocaleDateString()}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <button 
+                          className="btn btn-sm btn-outline-primary"
+                          onClick={() => {
+                            const fullCode = `${prescription.id}-${prescription.prescription_code}`;
+                            navigator.clipboard.writeText(fullCode);
+                            alert('Prescription code copied to clipboard!');
+                          }}
+                          title="Copy prescription code"
+                        >
+                          <i className="fas fa-copy"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="dashboard-layout">
       {/* Sidebar */}
@@ -793,7 +889,13 @@ function DoctorDashboard({ user }) {
         </div>
         
         <nav className="sidebar-nav">
-          {sidebarItems.map(item => (
+          {[
+            { id: 'overview', icon: 'fas fa-chart-pie', label: 'Dashboard Overview' },
+            { id: 'medicines', icon: 'fas fa-pills', label: `Medicine Repository (${medicines.length})` },
+            { id: 'add-medicine', icon: 'fas fa-plus-circle', label: 'Add New Medicine' },
+            { id: 'prescriptions', icon: 'fas fa-prescription', label: 'Create Prescription' },
+            { id: 'history', icon: 'fas fa-history', label: `Prescription History (${prescriptions.length})` },
+          ].map(item => (
             <button
               key={item.id}
               className={`sidebar-item ${activeTab === item.id ? 'active' : ''}`}
