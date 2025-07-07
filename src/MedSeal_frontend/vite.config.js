@@ -15,6 +15,7 @@ export default defineConfig({
       define: {
         global: "globalThis",
       },
+      target: 'esnext', // Support BigInt
     },
   },
   server: {

@@ -27,8 +27,8 @@ pub struct Medicine {
     pub frequency: String,
     pub duration: String,
     pub side_effects: String,
-    pub guide_pdf_data: Option<Vec<u8>>, // Store PDF data directly
-    pub guide_pdf_name: Option<String>, // Store PDF filename
+    pub guide_text: Option<String>, // Changed from guide_pdf_data to guide_text
+    pub guide_source: Option<String>, // Store source filename for reference
     pub created_by: String,
     pub created_at: u64,
     pub is_active: bool, // New field to track if medicine is active
@@ -69,8 +69,8 @@ pub struct CreateMedicineRequest {
     pub frequency: String,
     pub duration: String,
     pub side_effects: String,
-    pub guide_pdf_data: Option<Vec<u8>>,
-    pub guide_pdf_name: Option<String>,
+    pub guide_text: Option<String>, // Changed from guide_pdf_data
+    pub guide_source: Option<String>, // Changed from guide_pdf_name
 }
 
 #[derive(CandidType, Deserialize, Debug)]
@@ -219,8 +219,8 @@ fn add_medicine(request: CreateMedicineRequest) -> Result<Medicine> {
         frequency: request.frequency,
         duration: request.duration,
         side_effects: request.side_effects,
-        guide_pdf_data: request.guide_pdf_data,
-        guide_pdf_name: request.guide_pdf_name,
+        guide_text: request.guide_text, // Updated field
+        guide_source: request.guide_source, // Updated field
         created_by: doctor_id.clone(), // Use the user ID, not the principal
         created_at: time(),
         is_active: true, // New medicines are active by default
@@ -347,8 +347,8 @@ fn update_medicine(medicine_id: String, request: CreateMedicineRequest) -> Resul
             medicine.frequency = request.frequency;
             medicine.duration = request.duration;
             medicine.side_effects = request.side_effects;
-            medicine.guide_pdf_data = request.guide_pdf_data;
-            medicine.guide_pdf_name = request.guide_pdf_name;
+            medicine.guide_text = request.guide_text; // Updated field
+            medicine.guide_source = request.guide_source; // Updated field
             
             Ok(medicine.clone())
         } else {
@@ -357,12 +357,12 @@ fn update_medicine(medicine_id: String, request: CreateMedicineRequest) -> Resul
     })
 }
 
-// Add new function to get PDF data
+// Replace PDF function with text function
 #[ic_cdk::query]
-fn get_medicine_pdf(medicine_id: String) -> Option<Vec<u8>> {
+fn get_medicine_guide_text(medicine_id: String) -> Option<String> {
     MEDICINES.with(|medicines| {
         medicines.borrow().get(&medicine_id)
-            .and_then(|medicine| medicine.guide_pdf_data.clone())
+            .and_then(|medicine| medicine.guide_text.clone())
     })
 }
 

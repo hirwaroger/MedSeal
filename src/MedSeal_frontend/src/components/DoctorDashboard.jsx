@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MedSeal_backend } from 'declarations/MedSeal_backend';
+import { extractTextFromPDF, isPDF, getFileSize } from '../utils/ocrUtils';
 
 function DoctorDashboard({ user, showAlert }) {
   const [activeTab, setActiveTab] = useState('overview');
@@ -8,14 +9,17 @@ function DoctorDashboard({ user, showAlert }) {
   const [loading, setLoading] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Medicine form state
+  // Medicine form state - updated for text instead of PDF
   const [medicineForm, setMedicineForm] = useState({
     name: '',
     dosage: '',
     frequency: '',
     duration: '',
     side_effects: '',
-    guide_pdf_file: null
+    guide_file: null,
+    guide_text: '',
+    extracting: false,
+    extraction_progress: ''
   });
 
   // Prescription form state
@@ -60,27 +64,61 @@ function DoctorDashboard({ user, showAlert }) {
     }
   };
 
+  const handleFileUpload = async (file) => {
+    if (!file) return;
+    
+    if (!isPDF(file)) {
+      showAlert('error', 'Please select a valid PDF file');
+      return;
+    }
+    
+    setMedicineForm(prev => ({
+      ...prev,
+      guide_file: file,
+      extracting: true,
+      extraction_progress: 'Starting OCR...'
+    }));
+    
+    try {
+      const extractedText = await extractTextFromPDF(file, (progress) => {
+        setMedicineForm(prev => ({
+          ...prev,
+          extraction_progress: progress
+        }));
+      });
+      
+      setMedicineForm(prev => ({
+        ...prev,
+        guide_text: extractedText,
+        extracting: false,
+        extraction_progress: 'Text extracted successfully!'
+      }));
+      
+      showAlert('success', 'PDF text extracted successfully!');
+      
+    } catch (error) {
+      console.error('OCR extraction failed:', error);
+      setMedicineForm(prev => ({
+        ...prev,
+        extracting: false,
+        extraction_progress: 'Extraction failed'
+      }));
+      showAlert('error', 'Failed to extract text from PDF: ' + error.message);
+    }
+  };
+
   const handleAddMedicine = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      let pdfData = null;
-      let pdfName = null;
-      
-      if (medicineForm.guide_pdf_file) {
-        console.log('Processing PDF file:', medicineForm.guide_pdf_file.name);
-        pdfData = await fileToBytes(medicineForm.guide_pdf_file);
-        pdfName = medicineForm.guide_pdf_file.name;
-      }
-      
       const medicineData = {
         name: medicineForm.name,
         dosage: medicineForm.dosage,
         frequency: medicineForm.frequency,
         duration: medicineForm.duration,
         side_effects: medicineForm.side_effects,
-        guide_pdf_data: pdfData ? [pdfData] : [],
-        guide_pdf_name: pdfName ? [pdfName] : []
+        guide_text: medicineForm.guide_text || null,
+        guide_source: medicineForm.guide_file ? medicineForm.guide_file.name : null
       };
       
       console.log('Sending medicine data to backend:', medicineData);
@@ -95,8 +133,12 @@ function DoctorDashboard({ user, showAlert }) {
           frequency: '',
           duration: '',
           side_effects: '',
-          guide_pdf_file: null
+          guide_file: null,
+          guide_text: '',
+          extracting: false,
+          extraction_progress: ''
         });
+        
         // Clear file input
         const fileInput = document.querySelector('input[type="file"]');
         if (fileInput) fileInput.value = '';
@@ -202,19 +244,69 @@ function DoctorDashboard({ user, showAlert }) {
       if (pdfData && pdfData.length > 0) {
         const blob = new Blob([new Uint8Array(pdfData)], { type: 'application/pdf' });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${medicineName}_guide.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        
+        // Try multiple PDF viewing methods for better browser compatibility
+        const viewPDF = () => {
+          // Method 1: Try to open in new tab
+          const newWindow = window.open('', '_blank');
+          if (newWindow) {
+            newWindow.document.write(`
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <title>${medicineName} Guide</title>
+                <style>
+                  body { margin: 0; padding: 0; height: 100vh; }
+                  object, embed, iframe { width: 100%; height: 100%; border: none; }
+                  .fallback { padding: 20px; text-align: center; font-family: Arial, sans-serif; }
+                  .fallback a { display: inline-block; margin: 10px; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; }
+                </style>
+              </head>
+              <body>
+                <object data="${url}" type="application/pdf">
+                  <embed src="${url}" type="application/pdf">
+                    <div class="fallback">
+                      <h3>PDF Viewer</h3>
+                      <p>Your browser doesn't support embedded PDFs.</p>
+                      <a href="${url}" download="${medicineName}_guide.pdf">Download PDF</a>
+                      <a href="${url}" target="_blank">Open in New Tab</a>
+                    </div>
+                  </embed>
+                </object>
+              </body>
+              </html>
+            `);
+            newWindow.document.close();
+          } else {
+            // Method 2: If popup blocked, try direct navigation
+            window.location.href = url;
+          }
+        };
+
+        // Try to view the PDF
+        try {
+          viewPDF();
+          showAlert('success', 'Medicine guide opened successfully');
+        } catch (error) {
+          console.error('Error viewing PDF:', error);
+          // Method 3: Fallback to download
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${medicineName}_guide.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          showAlert('info', 'PDF downloaded to your device');
+        }
+        
+        // Clean up after a delay
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
       } else {
-        alert('No guide available for this medicine');
+        showAlert('warning', 'No guide available for this medicine');
       }
     } catch (error) {
       console.error('Error downloading PDF:', error);
-      alert('Error downloading guide: ' + error.message);
+      showAlert('error', 'Error downloading guide: ' + error.message);
     }
   };
 
@@ -399,7 +491,7 @@ function DoctorDashboard({ user, showAlert }) {
         <div className="empty-state">
           <i className="fas fa-pills fa-4x text-muted mb-3"></i>
           <h4 className="text-muted">No Medicines Added</h4>
-          <p className="text-muted">Start building your medicine repository</p>
+          <p className="text-muted">Start building your medicine repository with OCR-powered guides</p>
           <button 
             className="btn btn-primary"
             onClick={() => setActiveTab('add-medicine')}
@@ -419,13 +511,13 @@ function DoctorDashboard({ user, showAlert }) {
                   </span>
                 </div>
                 <div className="medicine-actions">
-                  {medicine.guide_pdf_data && medicine.guide_pdf_data.length > 0 && (
+                  {medicine.guide_text && (
                     <button 
                       className="btn btn-sm btn-outline-info me-1"
-                      onClick={() => downloadMedicinePDF(medicine.id, medicine.name)}
-                      title="Download Guide"
+                      onClick={() => viewMedicineGuide(medicine)}
+                      title="View Guide Text"
                     >
-                      <i className="fas fa-download"></i>
+                      <i className="fas fa-eye"></i>
                     </button>
                   )}
                   <button 
@@ -468,9 +560,14 @@ function DoctorDashboard({ user, showAlert }) {
                   Added {new Date(Number(medicine.created_at) / 1000000).toLocaleDateString()}
                 </small>
                 <div className="d-flex align-items-center gap-2">
-                  {medicine.guide_pdf_name && medicine.guide_pdf_name.length > 0 && (
+                  {medicine.guide_text && (
                     <span className="badge bg-info">
-                      <i className="fas fa-file-pdf me-1"></i>Guide Available
+                      <i className="fas fa-file-text me-1"></i>Guide Available
+                    </span>
+                  )}
+                  {medicine.guide_source && (
+                    <span className="badge bg-secondary" title={`Source: ${medicine.guide_source}`}>
+                      <i className="fas fa-file-pdf me-1"></i>OCR
                     </span>
                   )}
                   {!medicine.is_active && (
@@ -511,7 +608,7 @@ function DoctorDashboard({ user, showAlert }) {
     <div className="dashboard-content">
       <div className="content-header">
         <h1 className="content-title">Add New Medicine</h1>
-        <p className="content-subtitle">Build your medicine repository</p>
+        <p className="content-subtitle">Build your medicine repository with OCR-powered guides</p>
       </div>
       
       <div className="row justify-content-center">
@@ -522,6 +619,7 @@ function DoctorDashboard({ user, showAlert }) {
             </div>
             <div className="card-body">
               <form onSubmit={handleAddMedicine}>
+                {/* Basic medicine fields remain the same */}
                 <div className="row">
                   <div className="col-md-6">
                     <div className="form-group">
@@ -592,28 +690,66 @@ function DoctorDashboard({ user, showAlert }) {
                   />
                 </div>
                 
+                {/* Updated PDF upload section for OCR */}
                 <div className="form-group">
-                  <label className="form-label">Medicine Guide (PDF)</label>
+                  <label className="form-label">Medicine Guide (PDF - OCR)</label>
                   <div className="file-upload-area">
-                    <i className="fas fa-cloud-upload-alt upload-icon"></i>
-                    <p className="mb-2">Drop your PDF file here or click to browse</p>
+                    <i className="fas fa-file-pdf upload-icon"></i>
+                    <p className="mb-2">Drop your PDF file here for text extraction</p>
                     <input
                       type="file"
                       className="form-control"
                       accept=".pdf"
-                      onChange={(e) => setMedicineForm({...medicineForm, guide_pdf_file: e.target.files[0]})}
+                      onChange={(e) => handleFileUpload(e.target.files[0])}
+                      disabled={medicineForm.extracting}
                     />
-                    {medicineForm.guide_pdf_file && (
-                      <p className="text-success mt-2">
-                        <i className="fas fa-check me-2"></i>
-                        {medicineForm.guide_pdf_file.name}
-                      </p>
+                    {medicineForm.guide_file && (
+                      <div className="mt-2">
+                        <p className="text-info mb-1">
+                          <i className="fas fa-file-pdf me-2"></i>
+                          {medicineForm.guide_file.name} ({getFileSize(medicineForm.guide_file)})
+                        </p>
+                        {medicineForm.extracting && (
+                          <div className="alert alert-info">
+                            <i className="fas fa-cog fa-spin me-2"></i>
+                            {medicineForm.extraction_progress}
+                          </div>
+                        )}
+                        {medicineForm.guide_text && !medicineForm.extracting && (
+                          <p className="text-success">
+                            <i className="fas fa-check me-2"></i>
+                            Text extracted ({medicineForm.guide_text.length} characters)
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
                 
+                {/* Show extracted text preview */}
+                {medicineForm.guide_text && (
+                  <div className="form-group">
+                    <label className="form-label">Extracted Guide Text (Preview)</label>
+                    <textarea
+                      className="form-control"
+                      rows="6"
+                      value={medicineForm.guide_text}
+                      onChange={(e) => setMedicineForm({...medicineForm, guide_text: e.target.value})}
+                      placeholder="Extracted text will appear here... You can edit if needed."
+                      style={{ fontFamily: 'monospace', fontSize: '12px' }}
+                    />
+                    <small className="text-muted">
+                      You can edit the extracted text if needed before saving.
+                    </small>
+                  </div>
+                )}
+                
                 <div className="form-actions">
-                  <button type="submit" className="btn btn-primary btn-lg" disabled={loading}>
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary btn-lg" 
+                    disabled={loading || medicineForm.extracting}
+                  >
                     {loading ? (
                       <>
                         <span className="spinner-border spinner-border-sm me-2"></span>
@@ -867,6 +1003,94 @@ function DoctorDashboard({ user, showAlert }) {
       </div>
     </div>
   );
+
+  const viewMedicineGuide = (medicine) => {
+    if (!medicine.guide_text) {
+      showAlert('warning', 'No guide text available for this medicine');
+      return;
+    }
+    
+    // Create a new window with the guide text
+    const newWindow = window.open('', '_blank');
+    if (newWindow) {
+      newWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>${medicine.name} - Medicine Guide</title>
+          <style>
+            body { 
+              font-family: Arial, sans-serif; 
+              margin: 40px; 
+              line-height: 1.6; 
+              background: #f9f9f9;
+            }
+            .container {
+              max-width: 800px;
+              margin: 0 auto;
+              background: white;
+              padding: 30px;
+              border-radius: 8px;
+              box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+            h1 { 
+              color: #2563eb; 
+              border-bottom: 3px solid #2563eb;
+              padding-bottom: 10px;
+            }
+            .meta {
+              background: #f0f9ff;
+              padding: 15px;
+              border-radius: 5px;
+              margin: 20px 0;
+              border-left: 4px solid #2563eb;
+            }
+            .guide-content {
+              white-space: pre-wrap;
+              background: #fafafa;
+              padding: 20px;
+              border-radius: 5px;
+              border: 1px solid #e5e7eb;
+              font-family: 'Courier New', monospace;
+              font-size: 14px;
+            }
+            .print-btn {
+              background: #2563eb;
+              color: white;
+              border: none;
+              padding: 10px 20px;
+              border-radius: 5px;
+              cursor: pointer;
+              margin: 20px 0;
+            }
+            @media print {
+              .print-btn { display: none; }
+              body { background: white; }
+              .container { box-shadow: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h1>${medicine.name} - Medicine Guide</h1>
+            <div class="meta">
+              <p><strong>Dosage:</strong> ${medicine.dosage}</p>
+              <p><strong>Frequency:</strong> ${medicine.frequency}</p>
+              <p><strong>Duration:</strong> ${medicine.duration}</p>
+              ${medicine.guide_source ? `<p><strong>Source:</strong> ${medicine.guide_source}</p>` : ''}
+            </div>
+            <button class="print-btn" onclick="window.print()">🖨️ Print Guide</button>
+            <div class="guide-content">${medicine.guide_text}</div>
+          </div>
+        </body>
+        </html>
+      `);
+      newWindow.document.close();
+      showAlert('success', 'Medicine guide opened in new window');
+    } else {
+      showAlert('error', 'Popup blocked. Please allow popups for this site.');
+    }
+  };
 
   return (
     <div className="dashboard-layout">

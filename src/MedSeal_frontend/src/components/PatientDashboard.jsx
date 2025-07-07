@@ -14,19 +14,53 @@ function PatientDashboard({ user, showAlert }) {
 
   useEffect(() => {
     loadPrescriptionHistory();
-  }, []);
+  }, [user.id]); // Add user.id as dependency
 
   const loadPrescriptionHistory = () => {
     // Load from localStorage for now (in real app, you'd have a backend method)
-    const savedPrescriptions = JSON.parse(localStorage.getItem(`prescriptions_${user.id}`) || '[]');
-    setPrescriptionHistory(savedPrescriptions);
+    try {
+      const storageKey = `prescriptions_${user.id}`;
+      const savedPrescriptions = JSON.parse(localStorage.getItem(storageKey) || '[]', (key, value) => {
+        // Handle BigInt deserialization
+        if (typeof value === 'string' && /^\d+n$/.test(value)) {
+          return BigInt(value.slice(0, -1));
+        }
+        return value;
+      });
+      setPrescriptionHistory(savedPrescriptions);
+      console.log(`Loaded ${savedPrescriptions.length} prescriptions for user ${user.id}`);
+    } catch (error) {
+      console.error('Error loading prescription history:', error);
+      setPrescriptionHistory([]);
+    }
   };
 
   const savePrescriptionToHistory = (prescription) => {
-    const existingPrescriptions = JSON.parse(localStorage.getItem(`prescriptions_${user.id}`) || '[]');
-    const updatedPrescriptions = [prescription, ...existingPrescriptions.filter(p => p.id !== prescription.id)];
-    localStorage.setItem(`prescriptions_${user.id}`, JSON.stringify(updatedPrescriptions));
-    setPrescriptionHistory(updatedPrescriptions);
+    try {
+      const storageKey = `prescriptions_${user.id}`;
+      const existingPrescriptions = JSON.parse(localStorage.getItem(storageKey) || '[]', (key, value) => {
+        // Handle BigInt deserialization
+        if (typeof value === 'string' && /^\d+n$/.test(value)) {
+          return BigInt(value.slice(0, -1));
+        }
+        return value;
+      });
+      const updatedPrescriptions = [prescription, ...existingPrescriptions.filter(p => p.id !== prescription.id)];
+      
+      // Custom JSON serializer to handle BigInt
+      const serializedData = JSON.stringify(updatedPrescriptions, (key, value) => {
+        if (typeof value === 'bigint') {
+          return value.toString() + 'n';
+        }
+        return value;
+      });
+      
+      localStorage.setItem(storageKey, serializedData);
+      setPrescriptionHistory(updatedPrescriptions);
+      console.log(`Saved prescription ${prescription.id} to history for user ${user.id}`);
+    } catch (error) {
+      console.error('Error saving prescription to history:', error);
+    }
   };
 
   const handleAccessPrescription = async (e) => {
@@ -68,7 +102,21 @@ function PatientDashboard({ user, showAlert }) {
             const medicine = await MedSeal_backend.get_medicine(prescMed.medicine_id);
             console.log('Medicine loaded:', medicine);
             
-            if (medicine) {
+            if (medicine && medicine.length > 0) {
+              // Handle the case where get_medicine returns an array
+              const medicineData = Array.isArray(medicine) ? medicine[0] : medicine;
+              console.log('Medicine data extracted:', medicineData);
+              
+              return {
+                ...medicineData,
+                custom_dosage: Array.isArray(prescMed.custom_dosage) && prescMed.custom_dosage.length > 0 
+                  ? prescMed.custom_dosage[0] 
+                  : prescMed.custom_dosage || null,
+                custom_instructions: prescMed.custom_instructions || ''
+              };
+            } else if (medicine) {
+              // Handle direct medicine object
+              console.log('Medicine data (direct):', medicine);
               return {
                 ...medicine,
                 custom_dosage: Array.isArray(prescMed.custom_dosage) && prescMed.custom_dosage.length > 0 
@@ -77,6 +125,7 @@ function PatientDashboard({ user, showAlert }) {
                 custom_instructions: prescMed.custom_instructions || ''
               };
             }
+            console.log('Medicine not found or empty:', prescMed.medicine_id);
             return null;
           } catch (error) {
             console.error('Error loading medicine:', prescMed.medicine_id, error);
@@ -87,6 +136,20 @@ function PatientDashboard({ user, showAlert }) {
         const medicineDetails = await Promise.all(medicinePromises);
         const validMedicines = medicineDetails.filter(m => m !== null);
         console.log('Valid medicines loaded:', validMedicines);
+        
+        // Debug: Check if medicines have required fields
+        validMedicines.forEach((med, index) => {
+          console.log(`Medicine ${index}:`, {
+            name: med.name,
+            dosage: med.dosage,
+            frequency: med.frequency,
+            duration: med.duration,
+            side_effects: med.side_effects,
+            guide_pdf_data: med.guide_pdf_data ? 'Present' : 'Missing',
+            guide_pdf_name: med.guide_pdf_name
+          });
+        });
+        
         setMedicines(validMedicines);
         
         // Save to history with proper structure
@@ -153,7 +216,18 @@ function PatientDashboard({ user, showAlert }) {
           const medicine = await MedSeal_backend.get_medicine(prescMed.medicine_id);
           console.log('History medicine loaded:', medicine);
           
-          if (medicine) {
+          if (medicine && medicine.length > 0) {
+            // Handle the case where get_medicine returns an array
+            const medicineData = Array.isArray(medicine) ? medicine[0] : medicine;
+            return {
+              ...medicineData,
+              custom_dosage: Array.isArray(prescMed.custom_dosage) && prescMed.custom_dosage.length > 0 
+                ? prescMed.custom_dosage[0] 
+                : prescMed.custom_dosage || null,
+              custom_instructions: prescMed.custom_instructions || ''
+            };
+          } else if (medicine) {
+            // Handle direct medicine object
             return {
               ...medicine,
               custom_dosage: Array.isArray(prescMed.custom_dosage) && prescMed.custom_dosage.length > 0 
@@ -195,32 +269,165 @@ function PatientDashboard({ user, showAlert }) {
       console.log('Downloading PDF for medicine:', medicineId);
       const pdfData = await MedSeal_backend.get_medicine_pdf(medicineId);
       
+      console.log('PDF data response:', pdfData);
+      
       if (pdfData && pdfData.length > 0) {
         console.log('PDF data received, size:', pdfData.length);
         const blob = new Blob([new Uint8Array(pdfData)], { type: 'application/pdf' });
         const url = URL.createObjectURL(blob);
         
-        // Try to open in new tab first, fallback to download
-        const newWindow = window.open(url, '_blank');
-        if (!newWindow) {
-          // If popup blocked, download instead
+        // Try multiple PDF viewing methods for better browser compatibility
+        const viewPDF = () => {
+          // Method 1: Try to open in new tab
+          const newWindow = window.open('', '_blank');
+          if (newWindow) {
+            newWindow.document.write(`
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <title>${medicineName} Guide</title>
+                <style>
+                  body { margin: 0; padding: 0; height: 100vh; }
+                  object, embed, iframe { width: 100%; height: 100%; border: none; }
+                  .fallback { padding: 20px; text-align: center; font-family: Arial, sans-serif; }
+                  .fallback a { display: inline-block; margin: 10px; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; }
+                </style>
+              </head>
+              <body>
+                <object data="${url}" type="application/pdf">
+                  <embed src="${url}" type="application/pdf">
+                    <div class="fallback">
+                      <h3>PDF Viewer</h3>
+                      <p>Your browser doesn't support embedded PDFs.</p>
+                      <a href="${url}" download="${medicineName}_guide.pdf">Download PDF</a>
+                      <a href="${url}" target="_blank">Open in New Tab</a>
+                    </div>
+                  </embed>
+                </object>
+              </body>
+              </html>
+            `);
+            newWindow.document.close();
+          } else {
+            // Method 2: If popup blocked, try direct navigation
+            window.location.href = url;
+          }
+        };
+
+        // Try to view the PDF
+        try {
+          viewPDF();
+          showAlert('success', 'Medicine guide opened successfully');
+        } catch (error) {
+          console.error('Error viewing PDF:', error);
+          // Method 3: Fallback to download
           const a = document.createElement('a');
           a.href = url;
           a.download = `${medicineName}_guide.pdf`;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
+          showAlert('info', 'PDF downloaded to your device');
         }
         
         // Clean up after a delay
-        setTimeout(() => URL.revokeObjectURL(url), 10000);
-        showAlert('success', 'Medicine guide opened successfully');
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
       } else {
+        console.log('No PDF data or empty PDF data received');
         showAlert('warning', 'No guide available for this medicine');
       }
     } catch (error) {
       console.error('Error downloading PDF:', error);
-      showAlert('error', 'Error downloading guide: ' + error.message);
+      showAlert('error', 'Error loading guide: ' + error.message);
+    }
+  };
+
+  const viewMedicineGuide = (medicine) => {
+    if (!medicine.guide_text) {
+      showAlert('warning', 'No guide available for this medicine');
+      return;
+    }
+    
+    // Create a new window with the guide text
+    const newWindow = window.open('', '_blank');
+    if (newWindow) {
+      newWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>${medicine.name} - Medicine Guide</title>
+          <style>
+            body { 
+              font-family: Arial, sans-serif; 
+              margin: 40px; 
+              line-height: 1.6; 
+              background: #f9f9f9;
+            }
+            .container {
+              max-width: 800px;
+              margin: 0 auto;
+              background: white;
+              padding: 30px;
+              border-radius: 8px;
+              box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+            h1 { 
+              color: #2563eb; 
+              border-bottom: 3px solid #2563eb;
+              padding-bottom: 10px;
+            }
+            .meta {
+              background: #f0f9ff;
+              padding: 15px;
+              border-radius: 5px;
+              margin: 20px 0;
+              border-left: 4px solid #2563eb;
+            }
+            .guide-content {
+              white-space: pre-wrap;
+              background: #fafafa;
+              padding: 20px;
+              border-radius: 5px;
+              border: 1px solid #e5e7eb;
+              font-family: Georgia, serif;
+              font-size: 14px;
+              line-height: 1.6;
+            }
+            .print-btn {
+              background: #2563eb;
+              color: white;
+              border: none;
+              padding: 10px 20px;
+              border-radius: 5px;
+              cursor: pointer;
+              margin: 20px 0;
+            }
+            @media print {
+              .print-btn { display: none; }
+              body { background: white; }
+              .container { box-shadow: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h1>${medicine.name} - Medicine Guide</h1>
+            <div class="meta">
+              <p><strong>Dosage:</strong> ${medicine.custom_dosage || medicine.dosage}</p>
+              <p><strong>Frequency:</strong> ${medicine.frequency}</p>
+              <p><strong>Duration:</strong> ${medicine.duration}</p>
+              ${medicine.custom_instructions ? `<p><strong>Special Instructions:</strong> ${medicine.custom_instructions}</p>` : ''}
+            </div>
+            <button class="print-btn" onclick="window.print()">🖨️ Print Guide</button>
+            <div class="guide-content">${medicine.guide_text}</div>
+          </div>
+        </body>
+        </html>
+      `);
+      newWindow.document.close();
+      showAlert('success', 'Medicine guide opened in new window');
+    } else {
+      showAlert('error', 'Popup blocked. Please allow popups for this site.');
     }
   };
 
@@ -429,13 +636,13 @@ function PatientDashboard({ user, showAlert }) {
                       <div className="prescription-medicine card h-100">
                         <div className="card-body">
                           <div className="d-flex justify-content-between align-items-start mb-3">
-                            <h6 className="text-primary mb-0">{medicine.name}</h6>
-                            {medicine.guide_pdf_data && (
+                            <h6 className="text-primary mb-0">{medicine.name || 'Unknown Medicine'}</h6>
+                            {medicine.guide_text && (
                               <button
                                 className="btn btn-outline-primary btn-sm"
-                                onClick={() => downloadPrescriptionPDF(medicine.id, medicine.name)}
+                                onClick={() => viewMedicineGuide(medicine)}
                               >
-                                <i className="fas fa-download me-1"></i>Guide
+                                <i className="fas fa-eye me-1"></i>Guide
                               </button>
                             )}
                           </div>
@@ -443,15 +650,15 @@ function PatientDashboard({ user, showAlert }) {
                           <div className="row text-sm">
                             <div className="col-6 mb-2">
                               <strong className="text-muted">Dosage:</strong><br/>
-                              <span className="badge bg-info">{medicine.custom_dosage || medicine.dosage}</span>
+                              <span className="badge bg-info">{medicine.custom_dosage || medicine.dosage || 'Not specified'}</span>
                             </div>
                             <div className="col-6 mb-2">
                               <strong className="text-muted">Frequency:</strong><br/>
-                              <span className="badge bg-secondary">{medicine.frequency}</span>
+                              <span className="badge bg-secondary">{medicine.frequency || 'Not specified'}</span>
                             </div>
                             <div className="col-6 mb-2">
                               <strong className="text-muted">Duration:</strong><br/>
-                              <span className="badge bg-warning text-dark">{medicine.duration}</span>
+                              <span className="badge bg-warning text-dark">{medicine.duration || 'Not specified'}</span>
                             </div>
                             <div className="col-6 mb-2">
                               <strong className="text-muted">Status:</strong><br/>
@@ -468,17 +675,26 @@ function PatientDashboard({ user, showAlert }) {
                           
                           <div className="mt-3">
                             <strong className="text-muted">Side Effects:</strong>
-                            <p className="small text-danger mb-0 mt-1">{medicine.side_effects}</p>
+                            <p className="small text-danger mb-0 mt-1">{medicine.side_effects || 'None specified'}</p>
                           </div>
                           
-                          {medicine.guide_pdf_data && medicine.guide_pdf_data.length > 0 && (
+                          {medicine.guide_text && (
                             <div className="mt-3">
                               <button
                                 className="btn btn-outline-primary btn-sm w-100"
-                                onClick={() => downloadPrescriptionPDF(medicine.id, medicine.name)}
+                                onClick={() => viewMedicineGuide(medicine)}
                               >
-                                <i className="fas fa-file-pdf me-2"></i>View Medicine Guide
+                                <i className="fas fa-file-text me-2"></i>View Medicine Guide
                               </button>
+                            </div>
+                          )}
+                          
+                          {/* Debug info */}
+                          {process.env.NODE_ENV === 'development' && (
+                            <div className="mt-3">
+                              <small className="text-muted">
+                                <strong>Debug:</strong> ID: {medicine.id}, PDF: {medicine.guide_pdf_data ? 'Yes' : 'No'}
+                              </small>
                             </div>
                           )}
                         </div>

@@ -19,11 +19,11 @@ type Medicine = record {
     frequency: text;
     duration: text;
     side_effects: text;
-    guide_pdf_data: opt blob;
-    guide_pdf_name: opt text;
+    guide_text: opt text; // Updated field for guide text
+    guide_source: opt text; // Updated field for source filename
     created_by: text; // Doctor ID
     created_at: nat64;
-    is_active: bool; // New field to track if medicine is active
+    is_active: bool; // Field to track if medicine is active
 };
 
 type PrescriptionMedicine = record {
@@ -57,8 +57,8 @@ type CreateMedicineRequest = record {
     frequency: text;
     duration: text;
     side_effects: text;
-    guide_pdf_data: opt blob;
-    guide_pdf_name: opt text;
+    guide_text: opt text; // Updated field for guide text
+    guide_source: opt text; // Updated field for source filename
 };
 
 type CreatePrescriptionRequest = record {
@@ -98,7 +98,7 @@ service : {
     "add_medicine": (CreateMedicineRequest) -> (Result_Medicine);
     "get_doctor_medicines": (text) -> (vec Medicine) query;
     "get_medicine": (text) -> (opt Medicine) query;
-    "get_medicine_pdf": (text) -> (opt blob) query;
+    "get_medicine_guide_text": (text) -> (opt text) query; // Updated to fetch guide text
     "update_medicine": (text, CreateMedicineRequest) -> (Result_Medicine);
     "toggle_medicine_status": (text) -> (Result_Medicine);
     
