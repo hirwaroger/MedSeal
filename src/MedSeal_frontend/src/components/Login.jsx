@@ -1,25 +1,21 @@
 import { useState } from 'react';
 
-function Login({ onLogin, onSwitchToRegister, loading }) {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
+function Login({ onLogin, onSwitchToRegister, loading, showAlert }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
 
   const validateForm = () => {
     const newErrors = {};
     
-    if (!formData.email.trim()) {
+    if (!email.trim()) {
       newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
       newErrors.email = 'Please enter a valid email';
     }
     
-    if (!formData.password.trim()) {
+    if (!password.trim()) {
       newErrors.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
     }
     
     setErrors(newErrors);
@@ -29,12 +25,17 @@ function Login({ onLogin, onSwitchToRegister, loading }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
-      onLogin(formData.email, formData.password);
+      onLogin(email.trim(), password);
+    } else {
+      showAlert('error', 'Please correct the errors below');
     }
   };
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    if (field === 'email') setEmail(value);
+    if (field === 'password') setPassword(value);
+    
+    // Clear specific field error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -44,16 +45,14 @@ function Login({ onLogin, onSwitchToRegister, loading }) {
     <div className="auth-container">
       <div className="auth-card">
         <div className="auth-header">
-          <div className="brand-icon">
-            <i className="fas fa-heartbeat"></i>
-          </div>
+          <i className="fas fa-heartbeat brand-icon"></i>
           <h2>Welcome Back</h2>
           <p>Sign in to your MedSeal account</p>
         </div>
         
         <div className="auth-body">
           <form onSubmit={handleSubmit}>
-            <div className="mb-4">
+            <div className="mb-3">
               <label htmlFor="email" className="form-label">
                 <i className="fas fa-envelope me-2"></i>
                 Email Address
@@ -62,7 +61,7 @@ function Login({ onLogin, onSwitchToRegister, loading }) {
                 type="email"
                 className={`form-control ${errors.email ? 'is-invalid' : ''}`}
                 id="email"
-                value={formData.email}
+                value={email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
                 placeholder="Enter your email"
                 disabled={loading}
@@ -81,7 +80,7 @@ function Login({ onLogin, onSwitchToRegister, loading }) {
                 type="password"
                 className={`form-control ${errors.password ? 'is-invalid' : ''}`}
                 id="password"
-                value={formData.password}
+                value={password}
                 onChange={(e) => handleInputChange('password', e.target.value)}
                 placeholder="Enter your password"
                 disabled={loading}
@@ -93,7 +92,7 @@ function Login({ onLogin, onSwitchToRegister, loading }) {
             
             <button 
               type="submit" 
-              className="btn btn-primary btn-lg w-100 mb-4"
+              className="btn btn-primary w-100 mb-3"
               disabled={loading}
             >
               {loading ? (
@@ -111,15 +110,17 @@ function Login({ onLogin, onSwitchToRegister, loading }) {
           </form>
           
           <div className="text-center">
-            <p className="text-muted mb-2">Don't have an account?</p>
-            <button 
-              className="btn btn-outline-primary"
-              onClick={onSwitchToRegister}
-              disabled={loading}
-            >
-              <i className="fas fa-user-plus me-2"></i>
-              Create Account
-            </button>
+            <p className="mb-0">
+              Don't have an account?{' '}
+              <button 
+                type="button"
+                className="btn btn-link p-0"
+                onClick={onSwitchToRegister}
+                disabled={loading}
+              >
+                Register here
+              </button>
+            </p>
           </div>
         </div>
       </div>

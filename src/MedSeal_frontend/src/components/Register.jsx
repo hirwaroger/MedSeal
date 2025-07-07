@@ -1,12 +1,12 @@
 import { useState } from 'react';
 
-function Register({ onRegister, onSwitchToLogin, loading }) {
+function Register({ onRegister, onSwitchToLogin, loading, showAlert }) {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'Patient',
+    role: '',
     license_number: ''
   });
   const [errors, setErrors] = useState({});
@@ -15,9 +15,7 @@ function Register({ onRegister, onSwitchToLogin, loading }) {
     const newErrors = {};
     
     if (!formData.name.trim()) {
-      newErrors.name = 'Full name is required';
-    } else if (formData.name.trim().length < 2) {
-      newErrors.name = 'Name must be at least 2 characters';
+      newErrors.name = 'Name is required';
     }
     
     if (!formData.email.trim()) {
@@ -28,12 +26,14 @@ function Register({ onRegister, onSwitchToLogin, loading }) {
     
     if (!formData.password.trim()) {
       newErrors.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
     }
     
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match';
+    }
+    
+    if (!formData.role) {
+      newErrors.role = 'Please select your account type';
     }
     
     if (formData.role === 'Doctor' && !formData.license_number.trim()) {
@@ -42,6 +42,15 @@ function Register({ onRegister, onSwitchToLogin, loading }) {
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Clear specific field error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
   };
 
   const handleSubmit = (e) => {
@@ -54,27 +63,20 @@ function Register({ onRegister, onSwitchToLogin, loading }) {
         license_number: formData.role === 'Doctor' ? formData.license_number.trim() : ""
       };
       
-      console.log('Registration form data:', formData); // Debug log
-      console.log('Sending user data:', userData); // Debug log
+      console.log('Registration form data:', formData);
+      console.log('Sending user data:', userData);
       
       onRegister(userData);
-    }
-  };
-
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
+    } else {
+      showAlert('error', 'Please correct the errors below');
     }
   };
 
   return (
     <div className="auth-container">
-      <div className="auth-card" style={{ maxWidth: '600px' }}>
+      <div className="auth-card">
         <div className="auth-header">
-          <div className="brand-icon">
-            <i className="fas fa-user-plus"></i>
-          </div>
+          <i className="fas fa-heartbeat brand-icon"></i>
           <h2>Join MedSeal</h2>
           <p>Create your secure healthcare account</p>
         </div>
@@ -102,7 +104,6 @@ function Register({ onRegister, onSwitchToLogin, loading }) {
                   )}
                 </div>
               </div>
-              
               <div className="col-md-6">
                 <div className="mb-3">
                   <label htmlFor="email" className="form-label">
@@ -146,7 +147,6 @@ function Register({ onRegister, onSwitchToLogin, loading }) {
                   )}
                 </div>
               </div>
-              
               <div className="col-md-6">
                 <div className="mb-3">
                   <label htmlFor="confirmPassword" className="form-label">
@@ -220,6 +220,9 @@ function Register({ onRegister, onSwitchToLogin, loading }) {
                   </div>
                 </div>
               </div>
+              {errors.role && (
+                <div className="text-danger small mt-2">{errors.role}</div>
+              )}
             </div>
             
             {formData.role === 'Doctor' && (
@@ -249,7 +252,7 @@ function Register({ onRegister, onSwitchToLogin, loading }) {
             
             <button 
               type="submit" 
-              className="btn btn-success btn-lg w-100 mb-4"
+              className="btn btn-primary w-100 mb-3"
               disabled={loading}
             >
               {loading ? (
@@ -267,15 +270,17 @@ function Register({ onRegister, onSwitchToLogin, loading }) {
           </form>
           
           <div className="text-center">
-            <p className="text-muted mb-2">Already have an account?</p>
-            <button 
-              className="btn btn-outline-primary"
-              onClick={onSwitchToLogin}
-              disabled={loading}
-            >
-              <i className="fas fa-sign-in-alt me-2"></i>
-              Sign In
-            </button>
+            <p className="mb-0">
+              Already have an account?{' '}
+              <button 
+                type="button"
+                className="btn btn-link p-0"
+                onClick={onSwitchToLogin}
+                disabled={loading}
+              >
+                Sign in here
+              </button>
+            </p>
           </div>
         </div>
       </div>

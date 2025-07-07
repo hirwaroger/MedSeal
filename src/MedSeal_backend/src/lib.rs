@@ -149,19 +149,43 @@ fn get_user(user_id: String) -> Option<User> {
 
 #[ic_cdk::query]
 fn authenticate_user(email: String, _password: String) -> Result<User> {
+    ic_cdk::println!("Authenticating user with email: {}", email);
+    
     // In a real implementation, you'd hash and verify the password
     let user_id = USER_EMAILS.with(|emails| {
         emails.borrow().get(&email).cloned()
     });
     
+    ic_cdk::println!("Found user_id for email {}: {:?}", email, user_id);
+    
     match user_id {
         Some(id) => {
             USERS.with(|users| {
-                users.borrow().get(&id).cloned()
-                    .ok_or_else(|| "User not found".to_string())
+                let user = users.borrow().get(&id).cloned();
+                ic_cdk::println!("Retrieved user: {:?}", user);
+                
+                match user {
+                    Some(u) => {
+                        // Also ensure the principal mapping exists for future operations
+                        let caller_principal = ic_cdk::caller().to_string();
+                        PRINCIPAL_TO_USER.with(|mapping| {
+                            mapping.borrow_mut().insert(caller_principal.clone(), id.clone());
+                        });
+                        ic_cdk::println!("Updated principal mapping for login: {} -> {}", caller_principal, id);
+                        
+                        Ok(u)
+                    },
+                    None => {
+                        ic_cdk::println!("User not found in USERS map for id: {}", id);
+                        Err("User not found".to_string())
+                    }
+                }
             })
         },
-        None => Err("Invalid credentials".to_string())
+        None => {
+            ic_cdk::println!("Email not found in USER_EMAILS map");
+            Err("Invalid credentials".to_string())
+        }
     }
 }
 
@@ -390,7 +414,7 @@ fn get_prescription(prescription_id: String, code: String) -> Result<Prescriptio
         // Debug: print all prescriptions
         ic_cdk::println!("Total prescriptions in storage: {}", prescriptions_map.len());
         for (id, prescription) in prescriptions_map.iter() {
-            ic_cdk::println!("Prescription ID: {}, Code: {}", id, prescription.prescription_code);
+            ic_cdk::println!("Prescription ID: {}, Code: {}, Patient: {}", id, prescription.prescription_code, prescription.patient_name);
         }
         
         if let Some(prescription) = prescriptions_map.get_mut(&prescription_id) {
@@ -399,10 +423,17 @@ fn get_prescription(prescription_id: String, code: String) -> Result<Prescriptio
                 // Only mark as accessed when retrieved by patient, not when created
                 if prescription.accessed_at.is_none() {
                     prescription.accessed_at = Some(time());
-                    ic_cdk::println!("Prescription marked as accessed for the first time");
+                    ic_cdk::println!("Prescription marked as accessed for the first time at: {}", time());
                 } else {
-                    ic_cdk::println!("Prescription was already accessed before");
+                    ic_cdk::println!("Prescription was already accessed before at: {:?}", prescription.accessed_at);
                 }
+                
+                // Ensure medicines data is valid
+                ic_cdk::println!("Prescription has {} medicines", prescription.medicines.len());
+                for (i, med) in prescription.medicines.iter().enumerate() {
+                    ic_cdk::println!("Medicine {}: ID={}, Instructions={}", i, med.medicine_id, med.custom_instructions);
+                }
+                
                 Ok(prescription.clone())
             } else {
                 ic_cdk::println!("Invalid prescription code");
@@ -412,6 +443,14 @@ fn get_prescription(prescription_id: String, code: String) -> Result<Prescriptio
             ic_cdk::println!("Prescription not found");
             Err("Prescription not found".to_string())
         }
+    })
+}
+
+// Add a debug method to check prescription by ID only
+#[ic_cdk::query]
+fn debug_get_prescription_by_id(prescription_id: String) -> Option<Prescription> {
+    PRESCRIPTIONS.with(|prescriptions| {
+        prescriptions.borrow().get(&prescription_id).cloned()
     })
 }
 

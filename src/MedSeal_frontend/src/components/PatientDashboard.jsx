@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { MedSeal_backend } from 'declarations/MedSeal_backend';
+import Alert from './Alert';
 
-function PatientDashboard({ user }) {
+function PatientDashboard({ user, showAlert }) {
   const [activeTab, setActiveTab] = useState('access');
   const [prescriptionId, setPrescriptionId] = useState('');
   const [prescriptionCode, setPrescriptionCode] = useState('');
@@ -38,32 +39,45 @@ function PatientDashboard({ user }) {
     try {
       console.log('Accessing prescription with ID:', prescriptionId, 'Code:', prescriptionCode);
       
-      // Ensure the prescription ID and code are strings
+      // Ensure the prescription ID and code are strings and clean them
       const idString = String(prescriptionId).trim();
       const codeString = String(prescriptionCode).trim();
       
       console.log('Formatted - ID:', idString, 'Code:', codeString);
+      
+      // Validate input format
+      if (!idString || !codeString) {
+        setError('Please enter both Prescription ID and Secret Code');
+        setLoading(false);
+        return;
+      }
       
       const result = await MedSeal_backend.get_prescription(idString, codeString);
       console.log('Prescription result:', result);
       
       if ('Ok' in result) {
         const prescriptionData = result.Ok;
-        console.log('Prescription data:', prescriptionData);
+        console.log('Prescription data received:', prescriptionData);
         
         setCurrentPrescription(prescriptionData);
         
-        // Load medicine details
+        // Load medicine details with better error handling
         const medicinePromises = prescriptionData.medicines.map(async (prescMed) => {
           try {
             console.log('Loading medicine:', prescMed.medicine_id);
             const medicine = await MedSeal_backend.get_medicine(prescMed.medicine_id);
             console.log('Medicine loaded:', medicine);
-            return {
-              ...medicine,
-              custom_dosage: prescMed.custom_dosage && prescMed.custom_dosage.length > 0 ? prescMed.custom_dosage[0] : null,
-              custom_instructions: prescMed.custom_instructions
-            };
+            
+            if (medicine) {
+              return {
+                ...medicine,
+                custom_dosage: Array.isArray(prescMed.custom_dosage) && prescMed.custom_dosage.length > 0 
+                  ? prescMed.custom_dosage[0] 
+                  : prescMed.custom_dosage || null,
+                custom_instructions: prescMed.custom_instructions || ''
+              };
+            }
+            return null;
           } catch (error) {
             console.error('Error loading medicine:', prescMed.medicine_id, error);
             return null;
@@ -72,25 +86,31 @@ function PatientDashboard({ user }) {
         
         const medicineDetails = await Promise.all(medicinePromises);
         const validMedicines = medicineDetails.filter(m => m !== null);
-        console.log('Loaded medicines:', validMedicines);
+        console.log('Valid medicines loaded:', validMedicines);
         setMedicines(validMedicines);
         
-        // Save to history
+        // Save to history with proper structure
         savePrescriptionToHistory(prescriptionData);
         
         // Switch to current prescription tab
         setActiveTab('current');
+        
+        // Clear the form
+        setPrescriptionId('');
+        setPrescriptionCode('');
       } else {
         console.error('Backend error:', result.Err);
         setError(result.Err);
       }
     } catch (error) {
       console.error('Error accessing prescription:', error);
-      // Handle BigInt serialization error specifically
-      if (error.message && error.message.includes('BigInt')) {
-        setError('Data format error. Please try again or contact support.');
+      // Better error handling
+      if (error.message && (error.message.includes('BigInt') || error.message.includes('serializ'))) {
+        setError('Data format error. Please check your prescription code format and try again.');
+      } else if (error.message && error.message.includes('network')) {
+        setError('Network error. Please check your connection and try again.');
       } else {
-        setError('Error accessing prescription: ' + error.message);
+        setError('Error accessing prescription: ' + (error.message || 'Unknown error occurred'));
       }
     }
     setLoading(false);
@@ -108,24 +128,64 @@ function PatientDashboard({ user }) {
   };
 
   const viewHistoryPrescription = async (prescription) => {
+    if (!prescription) {
+      setError('Invalid prescription data');
+      return;
+    }
+
     setLoading(true);
+    setError('');
+    
     try {
+      console.log('Viewing history prescription:', prescription);
+      
+      // Check if prescription has medicines
+      if (!prescription.medicines || prescription.medicines.length === 0) {
+        setError('This prescription has no medicines associated with it');
+        setLoading(false);
+        return;
+      }
+
       // Load medicine details for history prescription
       const medicinePromises = prescription.medicines.map(async (prescMed) => {
-        const medicine = await MedSeal_backend.get_medicine(prescMed.medicine_id);
-        return {
-          ...medicine,
-          custom_dosage: prescMed.custom_dosage || null,
-          custom_instructions: prescMed.custom_instructions
-        };
+        try {
+          console.log('Loading medicine for history:', prescMed.medicine_id);
+          const medicine = await MedSeal_backend.get_medicine(prescMed.medicine_id);
+          console.log('History medicine loaded:', medicine);
+          
+          if (medicine) {
+            return {
+              ...medicine,
+              custom_dosage: Array.isArray(prescMed.custom_dosage) && prescMed.custom_dosage.length > 0 
+                ? prescMed.custom_dosage[0] 
+                : prescMed.custom_dosage || null,
+              custom_instructions: prescMed.custom_instructions || ''
+            };
+          }
+          return null;
+        } catch (error) {
+          console.error('Error loading history medicine:', prescMed.medicine_id, error);
+          return null;
+        }
       });
       
       const medicineDetails = await Promise.all(medicinePromises);
+      const validMedicines = medicineDetails.filter(m => m !== null);
+      
+      console.log('Valid history medicines:', validMedicines);
+      
+      if (validMedicines.length === 0) {
+        setError('Unable to load medicine details for this prescription');
+        setLoading(false);
+        return;
+      }
+      
       setCurrentPrescription(prescription);
-      setMedicines(medicineDetails.filter(m => m !== null));
+      setMedicines(validMedicines);
       setActiveTab('current');
     } catch (error) {
-      setError('Error loading prescription details: ' + error.message);
+      console.error('Error loading prescription details:', error);
+      setError('Error loading prescription details: ' + (error.message || 'Unknown error'));
     }
     setLoading(false);
   };
@@ -154,12 +214,13 @@ function PatientDashboard({ user }) {
         
         // Clean up after a delay
         setTimeout(() => URL.revokeObjectURL(url), 10000);
+        showAlert('success', 'Medicine guide opened successfully');
       } else {
-        alert('No guide available for this medicine');
+        showAlert('warning', 'No guide available for this medicine');
       }
     } catch (error) {
       console.error('Error downloading PDF:', error);
-      alert('Error downloading guide: ' + error.message);
+      showAlert('error', 'Error downloading guide: ' + error.message);
     }
   };
 
@@ -294,10 +355,11 @@ function PatientDashboard({ user }) {
                 </form>
                 
                 {error && (
-                  <div className="alert alert-danger mt-3">
-                    <i className="fas fa-exclamation-triangle me-2"></i>
-                    {error}
-                  </div>
+                  <Alert 
+                    type="error"
+                    message={error}
+                    onClose={() => setError('')}
+                  />
                 )}
               </div>
             </div>
@@ -347,10 +409,10 @@ function PatientDashboard({ user }) {
                         </h6>
                         <p className="mb-2"><strong>ID:</strong> <code>{currentPrescription.id}</code></p>
                         <p className="mb-2"><strong>Doctor ID:</strong> <code>{currentPrescription.doctor_id}</code></p>
-                        {currentPrescription.accessed_at && currentPrescription.accessed_at.length > 0 && (
+                        {currentPrescription.accessed_at && (
                           <p className="mb-0">
                             <strong>First Accessed:</strong> {' '}
-                            {new Date(Number(currentPrescription.accessed_at[0]) / 1000000).toLocaleDateString()}
+                            {new Date(Number(currentPrescription.accessed_at) / 1000000).toLocaleDateString()}
                           </p>
                         )}
                       </div>
@@ -481,11 +543,17 @@ function PatientDashboard({ user }) {
                     <i className="fas fa-prescription fa-3x text-muted mb-3"></i>
                     <h5 className="text-muted">No Prescription History</h5>
                     <p className="text-muted">Access your first prescription to start building your medical history.</p>
+                    <button 
+                      className="btn btn-primary"
+                      onClick={() => setActiveTab('access')}
+                    >
+                      <i className="fas fa-key me-2"></i>Access Prescription
+                    </button>
                   </div>
                 ) : (
                   <div className="row">
                     {prescriptionHistory.map((prescription, index) => (
-                      <div key={index} className="col-lg-6 mb-4">
+                      <div key={`history-${prescription.id}-${index}`} className="col-lg-6 mb-4">
                         <div className="card border h-100">
                           <div className="card-body">
                             <div className="d-flex justify-content-between align-items-start mb-3">
@@ -501,10 +569,10 @@ function PatientDashboard({ user }) {
                               </div>
                               <div className="d-flex flex-column align-items-end">
                                 <span className="badge bg-primary mb-1">
-                                  {prescription.medicines.length} medicine{prescription.medicines.length !== 1 ? 's' : ''}
+                                  {prescription.medicines?.length || 0} medicine{(prescription.medicines?.length || 0) !== 1 ? 's' : ''}
                                 </span>
-                                <span className={`badge ${prescription.accessed_at && prescription.accessed_at.length > 0 ? 'bg-success' : 'bg-info'}`}>
-                                  {prescription.accessed_at && prescription.accessed_at.length > 0 ? 'Accessed' : 'First Access'}
+                                <span className="badge bg-success">
+                                  Accessed
                                 </span>
                               </div>
                             </div>
@@ -516,18 +584,41 @@ function PatientDashboard({ user }) {
                               <strong>Doctor ID:</strong> <code className="small">{prescription.doctor_id}</code>
                             </p>
                             
+                            {prescription.additional_notes && (
+                              <p className="mb-3">
+                                <strong>Notes:</strong> 
+                                <span className="text-muted small d-block">{prescription.additional_notes}</span>
+                              </p>
+                            )}
+                            
                             <button 
                               className="btn btn-outline-primary btn-sm w-100"
                               onClick={() => viewHistoryPrescription(prescription)}
                               disabled={loading}
                             >
-                              <i className="fas fa-eye me-2"></i>
-                              View Details
+                              {loading ? (
+                                <>
+                                  <span className="spinner-border spinner-border-sm me-2"></span>
+                                  Loading...
+                                </>
+                              ) : (
+                                <>
+                                  <i className="fas fa-eye me-2"></i>
+                                  View Details
+                                </>
+                              )}
                             </button>
                           </div>
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+                
+                {error && (
+                  <div className="alert alert-danger mt-3">
+                    <i className="fas fa-exclamation-triangle me-2"></i>
+                    {error}
                   </div>
                 )}
               </div>

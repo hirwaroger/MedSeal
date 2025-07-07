@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { MedSeal_backend } from 'declarations/MedSeal_backend';
 
-function DoctorDashboard({ user }) {
+function DoctorDashboard({ user, showAlert }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [medicines, setMedicines] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
@@ -62,7 +62,6 @@ function DoctorDashboard({ user }) {
 
   const handleAddMedicine = async (e) => {
     e.preventDefault();
-    console.log('Adding medicine with form data:', medicineForm);
     setLoading(true);
     try {
       let pdfData = null;
@@ -102,16 +101,16 @@ function DoctorDashboard({ user }) {
         const fileInput = document.querySelector('input[type="file"]');
         if (fileInput) fileInput.value = '';
         
-        await loadMedicines(); // Reload medicines
-        alert('Medicine added successfully!');
-        setActiveTab('medicines'); // Switch to medicines tab to see the result
+        await loadMedicines();
+        showAlert('success', 'Medicine added successfully!');
+        setActiveTab('medicines');
       } else {
         console.error('Error from backend:', result.Err);
-        alert('Error: ' + result.Err);
+        showAlert('error', 'Error: ' + result.Err);
       }
     } catch (error) {
       console.error('Error adding medicine:', error);
-      alert('Error adding medicine: ' + error.message);
+      showAlert('error', 'Error adding medicine: ' + error.message);
     }
     setLoading(false);
   };
@@ -133,7 +132,7 @@ function DoctorDashboard({ user }) {
   const handleCreatePrescription = async (e) => {
     e.preventDefault();
     if (selectedMedicines.length === 0) {
-      alert('Please select at least one medicine');
+      showAlert('warning', 'Please select at least one medicine');
       return;
     }
 
@@ -164,19 +163,18 @@ function DoctorDashboard({ user }) {
         setSelectedMedicines([]);
         await loadPrescriptions();
         
-        // Show success message with prescription code
         const prescriptionCode = result.Ok;
-        alert(`Prescription created successfully!\n\nShare this code with your patient:\n${prescriptionCode}\n\nPatient can use this code to access their prescription securely.`);
+        showAlert('success', `Prescription created successfully! Share this code with your patient: ${prescriptionCode}`);
         setActiveTab('history');
       } else {
-        alert('Error: ' + result.Err);
+        showAlert('error', 'Error: ' + result.Err);
       }
     } catch (error) {
       console.error('Error creating prescription:', error);
       if (error.message && error.message.includes('BigInt')) {
-        alert('Data format error. Please try again.');
+        showAlert('error', 'Data format error. Please try again.');
       } else {
-        alert('Error creating prescription: ' + error.message);
+        showAlert('error', 'Error creating prescription: ' + error.message);
       }
     }
     setLoading(false);
@@ -186,15 +184,15 @@ function DoctorDashboard({ user }) {
     try {
       const result = await MedSeal_backend.toggle_medicine_status(medicineId);
       if ('Ok' in result) {
-        await loadMedicines(); // Reload medicines to update the display
+        await loadMedicines();
         const newStatus = result.Ok.is_active;
-        alert(`Medicine has been ${newStatus ? 'activated' : 'deactivated'} successfully.`);
+        showAlert('success', `Medicine has been ${newStatus ? 'activated' : 'deactivated'} successfully.`);
       } else {
-        alert('Error: ' + result.Err);
+        showAlert('error', 'Error: ' + result.Err);
       }
     } catch (error) {
       console.error('Error toggling medicine status:', error);
-      alert('Error updating medicine status: ' + error.message);
+      showAlert('error', 'Error updating medicine status: ' + error.message);
     }
   };
 

@@ -106,6 +106,7 @@ service : {
     "get_all_medicines_debug": () -> (vec Medicine) query;
     "get_current_caller": () -> (text) query;
     "get_principal_mapping_debug": () -> (vec record { text; text }) query;
+    "debug_get_prescription_by_id": (text) -> (opt Prescription) query;
     
     // Prescription Management
     "create_prescription": (CreatePrescriptionRequest) -> (Result_String);
