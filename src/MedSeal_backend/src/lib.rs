@@ -27,8 +27,8 @@ pub struct Medicine {
     pub frequency: String,
     pub duration: String,
     pub side_effects: String,
-    pub guide_text: Option<String>, // Changed from guide_pdf_data to guide_text
-    pub guide_source: Option<String>, // Store source filename for reference
+    pub guide_text: String, // Changed from Option<String> to String
+    pub guide_source: String, // Changed from Option<String> to String
     pub created_by: String,
     pub created_at: u64,
     pub is_active: bool, // New field to track if medicine is active
@@ -69,8 +69,8 @@ pub struct CreateMedicineRequest {
     pub frequency: String,
     pub duration: String,
     pub side_effects: String,
-    pub guide_text: Option<String>, // Changed from guide_pdf_data
-    pub guide_source: Option<String>, // Changed from guide_pdf_name
+    pub guide_text: String, // Changed to required
+    pub guide_source: String, // Changed to required
 }
 
 #[derive(CandidType, Deserialize, Debug)]
@@ -219,11 +219,11 @@ fn add_medicine(request: CreateMedicineRequest) -> Result<Medicine> {
         frequency: request.frequency,
         duration: request.duration,
         side_effects: request.side_effects,
-        guide_text: request.guide_text, // Updated field
-        guide_source: request.guide_source, // Updated field
-        created_by: doctor_id.clone(), // Use the user ID, not the principal
+        guide_text: request.guide_text, // Direct assignment since both are String
+        guide_source: request.guide_source, // Direct assignment since both are String
+        created_by: doctor_id.clone(),
         created_at: time(),
-        is_active: true, // New medicines are active by default
+        is_active: true,
     };
     
     MEDICINES.with(|medicines| {
@@ -347,8 +347,8 @@ fn update_medicine(medicine_id: String, request: CreateMedicineRequest) -> Resul
             medicine.frequency = request.frequency;
             medicine.duration = request.duration;
             medicine.side_effects = request.side_effects;
-            medicine.guide_text = request.guide_text; // Updated field
-            medicine.guide_source = request.guide_source; // Updated field
+            medicine.guide_text = request.guide_text; // Direct assignment since both are String
+            medicine.guide_source = request.guide_source; // Direct assignment since both are String
             
             Ok(medicine.clone())
         } else {
@@ -362,7 +362,7 @@ fn update_medicine(medicine_id: String, request: CreateMedicineRequest) -> Resul
 fn get_medicine_guide_text(medicine_id: String) -> Option<String> {
     MEDICINES.with(|medicines| {
         medicines.borrow().get(&medicine_id)
-            .and_then(|medicine| medicine.guide_text.clone())
+            .map(|medicine| medicine.guide_text.clone()) // Changed from .and_then() to .map() since guide_text is now String
     })
 }
 
