@@ -1,846 +1,828 @@
 import { useState, useEffect } from 'react';
 import { MedSeal_backend } from 'declarations/MedSeal_backend';
-import Alert from './Alert';
+import AIChat from './AIChat';
+import WidgetChat from './WidgetChat';
 
 function PatientDashboard({ user, showAlert }) {
-  const [activeTab, setActiveTab] = useState('access');
+  const [activeTab, setActiveTab] = useState('home');
   const [prescriptionId, setPrescriptionId] = useState('');
   const [prescriptionCode, setPrescriptionCode] = useState('');
   const [currentPrescription, setCurrentPrescription] = useState(null);
   const [prescriptionHistory, setPrescriptionHistory] = useState([]);
   const [medicines, setMedicines] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [showAIChat, setShowAIChat] = useState(false);
+  const [showHealthWidget, setShowHealthWidget] = useState(false);
+  const [widgetChatMode, setWidgetChatMode] = useState(false); // Add missing state
+  const [aiChatContext, setAiChatContext] = useState(null);
 
+  // Load prescription history on component mount
   useEffect(() => {
     loadPrescriptionHistory();
-  }, [user.id]); // Add user.id as dependency
+  }, []);
 
   const loadPrescriptionHistory = () => {
-    // Load from localStorage for now (in real app, you'd have a backend method)
-    try {
-      const storageKey = `prescriptions_${user.id}`;
-      const savedPrescriptions = JSON.parse(localStorage.getItem(storageKey) || '[]', (key, value) => {
-        // Handle BigInt deserialization
-        if (typeof value === 'string' && /^\d+n$/.test(value)) {
-          return BigInt(value.slice(0, -1));
-        }
-        return value;
-      });
-      setPrescriptionHistory(savedPrescriptions);
-      console.log(`Loaded ${savedPrescriptions.length} prescriptions for user ${user.id}`);
-    } catch (error) {
-      console.error('Error loading prescription history:', error);
-      setPrescriptionHistory([]);
-    }
+    // Get prescription history from localStorage
+    const history = JSON.parse(localStorage.getItem('prescriptionHistory') || '[]');
+    setPrescriptionHistory(history);
   };
 
-  const savePrescriptionToHistory = (prescription) => {
-    try {
-      const storageKey = `prescriptions_${user.id}`;
-      const existingPrescriptions = JSON.parse(localStorage.getItem(storageKey) || '[]', (key, value) => {
-        // Handle BigInt deserialization
-        if (typeof value === 'string' && /^\d+n$/.test(value)) {
-          return BigInt(value.slice(0, -1));
-        }
-        return value;
-      });
-      const updatedPrescriptions = [prescription, ...existingPrescriptions.filter(p => p.id !== prescription.id)];
-      
-      // Custom JSON serializer to handle BigInt
-      const serializedData = JSON.stringify(updatedPrescriptions, (key, value) => {
-        if (typeof value === 'bigint') {
-          return value.toString() + 'n';
-        }
-        return value;
-      });
-      
-      localStorage.setItem(storageKey, serializedData);
-      setPrescriptionHistory(updatedPrescriptions);
-      console.log(`Saved prescription ${prescription.id} to history for user ${user.id}`);
-    } catch (error) {
-      console.error('Error saving prescription to history:', error);
+  const savePrescriptionToHistory = (prescription, medicines) => {
+    const historyEntry = {
+      id: prescription.id,
+      prescription_code: prescription.prescription_code,
+      patient_name: prescription.patient_name,
+      created_at: prescription.created_at.toString(), // Convert BigInt to string
+      accessed_at: prescription.accessed_at ? prescription.accessed_at.toString() : Date.now().toString(),
+      medicines_count: medicines.length,
+      doctor_notes: prescription.additional_notes,
+      medicines: medicines.map(m => ({
+        name: m.medicine?.name || 'Unknown',
+        dosage: m.custom_dosage || m.medicine?.dosage || 'N/A',
+        instructions: m.custom_instructions
+      }))
+    };
+
+    // Get existing history
+    const history = JSON.parse(localStorage.getItem('prescriptionHistory') || '[]');
+    
+    // Check if prescription already exists in history
+    const existingIndex = history.findIndex(h => h.id === prescription.id);
+    
+    if (existingIndex >= 0) {
+      // Update existing entry
+      history[existingIndex] = historyEntry;
+    } else {
+      // Add new entry to beginning of array
+      history.unshift(historyEntry);
     }
+
+    // Keep only last 10 prescriptions
+    const limitedHistory = history.slice(0, 10);
+    
+    localStorage.setItem('prescriptionHistory', JSON.stringify(limitedHistory));
+    setPrescriptionHistory(limitedHistory);
   };
 
-  const handleAccessPrescription = async (e) => {
-    e.preventDefault();
+  const accessPrescription = async () => {
+    if (!prescriptionId.trim() || !prescriptionCode.trim()) {
+      showAlert('warning', 'Please enter both Prescription ID and Code');
+      return;
+    }
     setLoading(true);
-    setError('');
-    setCurrentPrescription(null);
-    setMedicines([]);
-
     try {
-      console.log('Accessing prescription with ID:', prescriptionId, 'Code:', prescriptionCode);
+      const result = await MedSeal_backend.get_prescription(prescriptionId.trim(), prescriptionCode.trim());
       
-      // Ensure the prescription ID and code are strings and clean them
-      const idString = String(prescriptionId).trim();
-      const codeString = String(prescriptionCode).trim();
-      
-      console.log('Formatted - ID:', idString, 'Code:', codeString);
-      
-      // Validate input format
-      if (!idString || !codeString) {
-        setError('Please enter both Prescription ID and Secret Code');
-        setLoading(false);
-        return;
-      }
-      
-      const result = await MedSeal_backend.get_prescription(idString, codeString);
-      console.log('Prescription result:', result);
+      console.log('[DEBUG] Access prescription result:', result);
       
       if ('Ok' in result) {
-        const prescriptionData = result.Ok;
-        console.log('Prescription data received:', prescriptionData);
+        const prescription = result.Ok;
+        setCurrentPrescription(prescription);
+        console.log('[DEBUG] Retrieved prescription:', prescription);
+        console.log('[DEBUG] Prescription medicines:', prescription.medicines);
         
-        setCurrentPrescription(prescriptionData);
-        
-        // Load medicine details with better error handling
-        const medicinePromises = prescriptionData.medicines.map(async (prescMed) => {
-          try {
-            console.log('Loading medicine:', prescMed.medicine_id);
-            const medicine = await MedSeal_backend.get_medicine(prescMed.medicine_id);
-            console.log('Medicine loaded:', medicine);
-            
-            if (medicine && medicine.length > 0) {
-              // Handle the case where get_medicine returns an array
-              const medicineData = Array.isArray(medicine) ? medicine[0] : medicine;
-              console.log('Medicine data extracted:', medicineData);
+        // Fetch medicine details with improved error handling and retries
+        const medicineDetails = await Promise.all(
+          prescription.medicines.map(async (med, index) => {
+            try {
+              console.log(`[DEBUG] Fetching medicine ${index}: ID=${med.medicine_id}`);
               
+              // Try to get medicine details
+              const medicineResult = await MedSeal_backend.get_medicine(med.medicine_id);
+              console.log(`[DEBUG] Medicine ${index} result:`, medicineResult);
+              
+              if (medicineResult && medicineResult.name) {
+                console.log(`[DEBUG] Successfully retrieved medicine: ${medicineResult.name}`);
+                return {
+                  ...med,
+                  medicine: medicineResult
+                };
+              } else {
+                console.warn(`[DEBUG] Medicine not found for ID: ${med.medicine_id}, trying alternative approach`);
+                
+                // Try to get all medicines and find by ID (debug approach)
+                try {
+                  const allMedicines = await MedSeal_backend.get_all_medicines_debug();
+                  console.log('[DEBUG] All medicines from debug endpoint:', allMedicines);
+                  const foundMedicine = allMedicines.find(m => m.id === med.medicine_id);
+                  
+                  if (foundMedicine) {
+                    console.log(`[DEBUG] Found medicine via debug endpoint: ${foundMedicine.name}`);
+                    return {
+                      ...med,
+                      medicine: foundMedicine
+                    };
+                  }
+                } catch (debugError) {
+                  console.error('[DEBUG] Debug endpoint failed:', debugError);
+                }
+                
+                // Return fallback with medicine ID visible
+                return {
+                  ...med,
+                  medicine: { 
+                    name: `Medicine (ID: ${med.medicine_id})`, 
+                    dosage: 'Contact your doctor for details', 
+                    frequency: 'As prescribed', 
+                    duration: 'As prescribed', 
+                    side_effects: 'Contact your doctor for details',
+                    guide_text: 'No guide available - Contact your doctor'
+                  }
+                };
+              }
+            } catch (error) {
+              console.error(`[DEBUG] Error fetching medicine for ID ${med.medicine_id}:`, error);
               return {
-                ...medicineData,
-                custom_dosage: Array.isArray(prescMed.custom_dosage) && prescMed.custom_dosage.length > 0 
-                  ? prescMed.custom_dosage[0] 
-                  : prescMed.custom_dosage || null,
-                custom_instructions: prescMed.custom_instructions || ''
-              };
-            } else if (medicine) {
-              // Handle direct medicine object
-              console.log('Medicine data (direct):', medicine);
-              return {
-                ...medicine,
-                custom_dosage: Array.isArray(prescMed.custom_dosage) && prescMed.custom_dosage.length > 0 
-                  ? prescMed.custom_dosage[0] 
-                  : prescMed.custom_dosage || null,
-                custom_instructions: prescMed.custom_instructions || ''
+                ...med,
+                medicine: { 
+                  name: `Medicine (ID: ${med.medicine_id})`, 
+                  dosage: 'Contact your doctor for details', 
+                  frequency: 'As prescribed', 
+                  duration: 'As prescribed', 
+                  side_effects: 'Contact your doctor for details',
+                  guide_text: 'No guide available - Contact your doctor'
+                }
               };
             }
-            console.log('Medicine not found or empty:', prescMed.medicine_id);
-            return null;
-          } catch (error) {
-            console.error('Error loading medicine:', prescMed.medicine_id, error);
-            return null;
-          }
-        });
+          })
+        );
         
-        const medicineDetails = await Promise.all(medicinePromises);
-        const validMedicines = medicineDetails.filter(m => m !== null);
-        console.log('Valid medicines loaded:', validMedicines);
+        console.log('[DEBUG] Final medicine details:', medicineDetails);
         
-        // Debug: Check if medicines have required fields
-        validMedicines.forEach((med, index) => {
-          console.log(`Medicine ${index}:`, {
-            name: med.name,
-            dosage: med.dosage,
-            frequency: med.frequency,
-            duration: med.duration,
-            side_effects: med.side_effects,
-            guide_pdf_data: med.guide_pdf_data ? 'Present' : 'Missing',
-            guide_pdf_name: med.guide_pdf_name
-          });
-        });
+        // Validate that we have at least some medicine information
+        const validMedicines = medicineDetails.filter(med => med.medicine && med.medicine.name);
+        console.log(`[DEBUG] Valid medicines count: ${validMedicines.length} out of ${medicineDetails.length}`);
         
-        setMedicines(validMedicines);
+        setMedicines(medicineDetails);
         
-        // Save to history with proper structure
-        savePrescriptionToHistory(prescriptionData);
+        // Save to history with debug logging
+        savePrescriptionToHistory(prescription, medicineDetails);
+        console.log('[DEBUG] Prescription saved to history:', prescription, medicineDetails);
         
-        // Switch to current prescription tab
-        setActiveTab('current');
+        setActiveTab('prescription');
         
-        // Clear the form
-        setPrescriptionId('');
-        setPrescriptionCode('');
-      } else {
-        console.error('Backend error:', result.Err);
-        setError(result.Err);
-      }
-    } catch (error) {
-      console.error('Error accessing prescription:', error);
-      // Better error handling
-      if (error.message && (error.message.includes('BigInt') || error.message.includes('serializ'))) {
-        setError('Data format error. Please check your prescription code format and try again.');
-      } else if (error.message && error.message.includes('network')) {
-        setError('Network error. Please check your connection and try again.');
-      } else {
-        setError('Error accessing prescription: ' + (error.message || 'Unknown error occurred'));
-      }
-    }
-    setLoading(false);
-  };
-
-  const handleFullCodeInput = (value) => {
-    const cleanValue = value.trim();
-    if (cleanValue.includes('-')) {
-      const parts = cleanValue.split('-');
-      if (parts.length === 2) {
-        setPrescriptionId(parts[0].trim());
-        setPrescriptionCode(parts[1].trim());
-      }
-    }
-  };
-
-  const viewHistoryPrescription = async (prescription) => {
-    if (!prescription) {
-      setError('Invalid prescription data');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-    
-    try {
-      console.log('Viewing history prescription:', prescription);
-      
-      // Check if prescription has medicines
-      if (!prescription.medicines || prescription.medicines.length === 0) {
-        setError('This prescription has no medicines associated with it');
-        setLoading(false);
-        return;
-      }
-
-      // Load medicine details for history prescription
-      const medicinePromises = prescription.medicines.map(async (prescMed) => {
-        try {
-          console.log('Loading medicine for history:', prescMed.medicine_id);
-          const medicine = await MedSeal_backend.get_medicine(prescMed.medicine_id);
-          console.log('History medicine loaded:', medicine);
-          
-          if (medicine && medicine.length > 0) {
-            // Handle the case where get_medicine returns an array
-            const medicineData = Array.isArray(medicine) ? medicine[0] : medicine;
-            return {
-              ...medicineData,
-              custom_dosage: Array.isArray(prescMed.custom_dosage) && prescMed.custom_dosage.length > 0 
-                ? prescMed.custom_dosage[0] 
-                : prescMed.custom_dosage || null,
-              custom_instructions: prescMed.custom_instructions || ''
-            };
-          } else if (medicine) {
-            // Handle direct medicine object
-            return {
-              ...medicine,
-              custom_dosage: Array.isArray(prescMed.custom_dosage) && prescMed.custom_dosage.length > 0 
-                ? prescMed.custom_dosage[0] 
-                : prescMed.custom_dosage || null,
-              custom_instructions: prescMed.custom_instructions || ''
-            };
-          }
-          return null;
-        } catch (error) {
-          console.error('Error loading history medicine:', prescMed.medicine_id, error);
-          return null;
+        if (validMedicines.length < medicineDetails.length) {
+          showAlert('warning', `Prescription accessed but some medicine details could not be loaded. Contact your doctor if needed.`);
+        } else {
+          showAlert('success', 'Prescription accessed successfully!');
         }
-      });
-      
-      const medicineDetails = await Promise.all(medicinePromises);
-      const validMedicines = medicineDetails.filter(m => m !== null);
-      
-      console.log('Valid history medicines:', validMedicines);
-      
-      if (validMedicines.length === 0) {
-        setError('Unable to load medicine details for this prescription');
-        setLoading(false);
-        return;
-      }
-      
-      setCurrentPrescription(prescription);
-      setMedicines(validMedicines);
-      setActiveTab('current');
-    } catch (error) {
-      console.error('Error loading prescription details:', error);
-      setError('Error loading prescription details: ' + (error.message || 'Unknown error'));
-    }
-    setLoading(false);
-  };
-
-  const downloadPrescriptionPDF = async (medicineId, medicineName) => {
-    try {
-      console.log('Downloading PDF for medicine:', medicineId);
-      const pdfData = await MedSeal_backend.get_medicine_pdf(medicineId);
-      
-      console.log('PDF data response:', pdfData);
-      
-      if (pdfData && pdfData.length > 0) {
-        console.log('PDF data received, size:', pdfData.length);
-        const blob = new Blob([new Uint8Array(pdfData)], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
-        
-        // Try multiple PDF viewing methods for better browser compatibility
-        const viewPDF = () => {
-          // Method 1: Try to open in new tab
-          const newWindow = window.open('', '_blank');
-          if (newWindow) {
-            newWindow.document.write(`
-              <!DOCTYPE html>
-              <html>
-              <head>
-                <title>${medicineName} Guide</title>
-                <style>
-                  body { margin: 0; padding: 0; height: 100vh; }
-                  object, embed, iframe { width: 100%; height: 100%; border: none; }
-                  .fallback { padding: 20px; text-align: center; font-family: Arial, sans-serif; }
-                  .fallback a { display: inline-block; margin: 10px; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; }
-                </style>
-              </head>
-              <body>
-                <object data="${url}" type="application/pdf">
-                  <embed src="${url}" type="application/pdf">
-                    <div class="fallback">
-                      <h3>PDF Viewer</h3>
-                      <p>Your browser doesn't support embedded PDFs.</p>
-                      <a href="${url}" download="${medicineName}_guide.pdf">Download PDF</a>
-                      <a href="${url}" target="_blank">Open in New Tab</a>
-                    </div>
-                  </embed>
-                </object>
-              </body>
-              </html>
-            `);
-            newWindow.document.close();
-          } else {
-            // Method 2: If popup blocked, try direct navigation
-            window.location.href = url;
-          }
-        };
-
-        // Try to view the PDF
-        try {
-          viewPDF();
-          showAlert('success', 'Medicine guide opened successfully');
-        } catch (error) {
-          console.error('Error viewing PDF:', error);
-          // Method 3: Fallback to download
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${medicineName}_guide.pdf`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          showAlert('info', 'PDF downloaded to your device');
-        }
-        
-        // Clean up after a delay
-        setTimeout(() => URL.revokeObjectURL(url), 30000);
       } else {
-        console.log('No PDF data or empty PDF data received');
-        showAlert('warning', 'No guide available for this medicine');
+        console.log('[DEBUG] Failed to access prescription:', result.Err);
+        showAlert('error', 'Failed to access prescription: ' + result.Err);
       }
     } catch (error) {
-      console.error('Error downloading PDF:', error);
-      showAlert('error', 'Error loading guide: ' + error.message);
+      console.error('[DEBUG] Error accessing prescription:', error);
+      showAlert('error', 'Error accessing prescription: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const viewMedicineGuide = (medicine) => {
-    if (!medicine.guide_text) {
-      showAlert('warning', 'No guide available for this medicine');
-      return;
-    }
+  const loadPrescriptionFromHistory = (historyEntry) => {
+    // Reconstruct prescription object from history
+    const prescription = {
+      id: historyEntry.id,
+      prescription_code: historyEntry.prescription_code,
+      patient_name: historyEntry.patient_name,
+      patient_contact: '',
+      created_at: historyEntry.created_at,
+      accessed_at: historyEntry.accessed_at,
+      additional_notes: historyEntry.doctor_notes,
+      medicines: []
+    };
+
+    // Reconstruct medicines
+    const medicineDetails = historyEntry.medicines.map((med, index) => ({
+      medicine_id: `history_${index}`,
+      custom_dosage: med.dosage === 'N/A' ? null : med.dosage,
+      custom_instructions: med.instructions || '',
+      medicine: {
+        name: med.name,
+        dosage: med.dosage,
+        frequency: 'As prescribed',
+        duration: 'As prescribed',
+        side_effects: 'Consult your doctor'
+      }
+    }));
+
+    setCurrentPrescription(prescription);
+    setMedicines(medicineDetails);
+    setActiveTab('prescription');
+    showAlert('info', 'Prescription loaded from history');
+  };
+
+  const openAIAssistant = (specificContext = null, mode = 'general') => {
+    let context;
     
-    // Create a new window with the guide text
-    const newWindow = window.open('', '_blank');
-    if (newWindow) {
-      newWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>${medicine.name} - Medicine Guide</title>
-          <style>
-            body { 
-              font-family: Arial, sans-serif; 
-              margin: 40px; 
-              line-height: 1.6; 
-              background: #f9f9f9;
-            }
-            .container {
-              max-width: 800px;
-              margin: 0 auto;
-              background: white;
-              padding: 30px;
-              border-radius: 8px;
-              box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            }
-            h1 { 
-              color: #2563eb; 
-              border-bottom: 3px solid #2563eb;
-              padding-bottom: 10px;
-            }
-            .meta {
-              background: #f0f9ff;
-              padding: 15px;
-              border-radius: 5px;
-              margin: 20px 0;
-              border-left: 4px solid #2563eb;
-            }
-            .guide-content {
-              white-space: pre-wrap;
-              background: #fafafa;
-              padding: 20px;
-              border-radius: 5px;
-              border: 1px solid #e5e7eb;
-              font-family: Georgia, serif;
-              font-size: 14px;
-              line-height: 1.6;
-            }
-            .print-btn {
-              background: #2563eb;
-              color: white;
-              border: none;
-              padding: 10px 20px;
-              border-radius: 5px;
-              cursor: pointer;
-              margin: 20px 0;
-            }
-            @media print {
-              .print-btn { display: none; }
-              body { background: white; }
-              .container { box-shadow: none; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <h1>${medicine.name} - Medicine Guide</h1>
-            <div class="meta">
-              <p><strong>Dosage:</strong> ${medicine.custom_dosage || medicine.dosage}</p>
-              <p><strong>Frequency:</strong> ${medicine.frequency}</p>
-              <p><strong>Duration:</strong> ${medicine.duration}</p>
-              ${medicine.custom_instructions ? `<p><strong>Special Instructions:</strong> ${medicine.custom_instructions}</p>` : ''}
-            </div>
-            <button class="print-btn" onclick="window.print()">🖨️ Print Guide</button>
-            <div class="guide-content">${medicine.guide_text}</div>
-          </div>
-        </body>
-        </html>
-      `);
-      newWindow.document.close();
-      showAlert('success', 'Medicine guide opened in new window');
+    if (mode === 'prescription' && currentPrescription) {
+      // Prescription mode - include detailed prescription and medicine data
+      const prescriptionText = `Patient: ${currentPrescription.patient_name}
+Created: ${formatDate(currentPrescription.created_at)}
+Doctor Notes: ${currentPrescription.additional_notes || 'No additional notes'}
+
+Prescribed Medicines:
+${medicines.map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom_dosage || m.medicine?.dosage || 'N/A'})
+  Instructions: ${m.custom_instructions || 'Take as prescribed'}
+  Frequency: ${m.medicine?.frequency || 'N/A'}
+  Duration: ${m.medicine?.duration || 'N/A'}
+  Side Effects: ${m.medicine?.side_effects || 'N/A'}
+  Guide: ${m.medicine?.guide_text ? m.medicine.guide_text.substring(0, 300) + '...' : 'No guide available'}`).join('\n\n')}`;
+      
+      context = {
+        prescription: prescriptionText,
+        medicines: null
+      };
+    } else if (specificContext) {
+      // Specific context provided
+      context = {
+        prescription: specificContext.prescription || null,
+        medicines: specificContext.medicines || null
+      };
     } else {
-      showAlert('error', 'Popup blocked. Please allow popups for this site.');
+      // General mode - no specific context
+      context = {
+        prescription: null,
+        medicines: null
+      };
     }
+    
+    console.log('Opening AI assistant with mode:', mode, 'and context:', context);
+    setAiChatContext(context);
+    setShowAIChat(true);
+    setShowHealthWidget(false);
+  };
+  
+  const openWidgetChat = (mode = 'general') => {
+    let context;
+    
+    if (mode === 'prescription' && currentPrescription) {
+      const prescriptionText = `Patient: ${currentPrescription.patient_name}
+Medicines: ${medicines.map(m => `${m.medicine?.name || 'Unknown'} - ${m.custom_instructions || 'No instructions'}`).join(', ')}
+Doctor Notes: ${currentPrescription.additional_notes || 'No additional notes'}`;
+      
+      context = {
+        prescription: prescriptionText,
+        medicines: null
+      };
+    } else {
+      context = {
+        prescription: null,
+        medicines: null
+      };
+    }
+    
+    console.log('Opening widget chat with mode:', mode, 'and context:', context);
+    setAiChatContext(context);
+    setWidgetChatMode(true);
+    setShowHealthWidget(true);
   };
 
-  return (
-    <div className="container-fluid py-4">
-      <div className="dashboard-header">
-        <div className="row align-items-center">
-          <div className="col">
-            <h2>
-              <i className="fas fa-user me-3"></i>
-              Welcome, {user.name}
-            </h2>
-            <p className="text-muted mb-0">Access and manage your medical prescriptions securely</p>
-          </div>
-        </div>
-      </div>
-      
-      <ul className="nav nav-tabs mb-4">
-        <li className="nav-item">
-          <button 
-            className={`nav-link ${activeTab === 'access' ? 'active' : ''}`}
-            onClick={() => setActiveTab('access')}
-          >
-            <i className="fas fa-key me-2"></i>
-            Access Prescription
-          </button>
-        </li>
-        <li className="nav-item">
-          <button 
-            className={`nav-link ${activeTab === 'current' ? 'active' : ''}`}
-            onClick={() => setActiveTab('current')}
-            disabled={!currentPrescription}
-          >
-            <i className="fas fa-prescription me-2"></i>
-            Current Prescription
-          </button>
-        </li>
-        <li className="nav-item">
-          <button 
-            className={`nav-link ${activeTab === 'history' ? 'active' : ''}`}
-            onClick={() => setActiveTab('history')}
-          >
-            <i className="fas fa-history me-2"></i>
-            Prescription History ({prescriptionHistory.length})
-          </button>
-        </li>
-      </ul>
+  const closeAIAssistant = () => {
+    console.log('Closing AI Assistant');
+    setShowAIChat(false);
+    setAiChatContext(null);
+  };
 
-      {/* Access Prescription Tab */}
-      {activeTab === 'access' && (
-        <div className="row justify-content-center">
-          <div className="col-lg-8">
-            <div className="card shadow-sm">
-              <div className="card-header bg-primary text-white">
-                <h5 className="mb-0">
-                  <i className="fas fa-unlock me-2"></i>
-                  Access Your Prescription
-                </h5>
+  const toggleHealthWidget = () => {
+    if (widgetChatMode) {
+      setWidgetChatMode(false);
+    }
+    setShowHealthWidget(!showHealthWidget);
+  };
+
+  const formatDate = (timestamp) => {
+    // Handle both string and BigInt timestamps
+    const numericTimestamp = typeof timestamp === 'string' ? parseInt(timestamp) : Number(timestamp);
+    return new Date(numericTimestamp / 1000000).toLocaleString();
+  };
+
+  const formatDateShort = (timestamp) => {
+    // Handle both string and BigInt timestamps
+    const numericTimestamp = typeof timestamp === 'string' ? parseInt(timestamp) : Number(timestamp);
+    return new Date(numericTimestamp / 1000000).toLocaleDateString();
+  };
+
+  const renderHomeContent = () => (
+    <div className="row">
+      <div className="col-lg-8">
+        <div className="modern-card mb-4">
+          <div className="card-header">
+            <h5><i className="fas fa-prescription me-2"></i>Access Your Prescription</h5>
+          </div>
+          <div className="card-body">
+            <p className="text-muted mb-4">
+              Enter your prescription details to view your medications and get personalized guidance.
+            </p>
+            
+            <div className="row g-3">
+              <div className="col-md-6">
+                <label className="form-label">Prescription ID</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={prescriptionId}
+                  onChange={(e) => setPrescriptionId(e.target.value)}
+                  placeholder="Enter 6-digit ID"
+                  maxLength={6}
+                />
               </div>
-              <div className="card-body p-4">
-                <div className="alert alert-info mb-4">
-                  <i className="fas fa-info-circle me-2"></i>
-                  Enter the Prescription ID and Secret Code provided by your doctor to access your secure prescription.
-                </div>
-                
-                <form onSubmit={handleAccessPrescription}>
-                  <div className="row mb-3">
-                    <div className="col-md-6">
-                      <label htmlFor="prescriptionId" className="form-label fw-semibold">
-                        <i className="fas fa-hashtag me-2"></i>
-                        Prescription ID
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control form-control-lg"
-                        id="prescriptionId"
-                        value={prescriptionId}
-                        onChange={(e) => setPrescriptionId(e.target.value)}
-                        placeholder="e.g., 123456"
-                        disabled={loading}
-                      />
-                    </div>
-                    <div className="col-md-6">
-                      <label htmlFor="prescriptionCode" className="form-label fw-semibold">
-                        <i className="fas fa-key me-2"></i>
-                        Secret Code
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control form-control-lg"
-                        id="prescriptionCode"
-                        value={prescriptionCode}
-                        onChange={(e) => setPrescriptionCode(e.target.value)}
-                        placeholder="e.g., 789012"
-                        disabled={loading}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="mb-4">
-                    <label htmlFor="fullCode" className="form-label fw-semibold">
-                      <i className="fas fa-paste me-2"></i>
-                      Or paste complete prescription code:
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control form-control-lg"
-                      id="fullCode"
-                      placeholder="e.g., 123456-789012"
-                      onChange={(e) => handleFullCodeInput(e.target.value)}
-                      disabled={loading}
-                    />
-                  </div>
-                  
-                  <button 
-                    type="submit" 
-                    className="btn btn-primary btn-lg w-100"
-                    disabled={loading || !prescriptionId || !prescriptionCode}
-                  >
-                    {loading ? (
-                      <>
-                        <span className="spinner-border spinner-border-sm me-2"></span>
-                        Accessing Prescription...
-                      </>
-                    ) : (
-                      <>
-                        <i className="fas fa-unlock me-2"></i>
-                        Access Prescription
-                      </>
-                    )}
-                  </button>
-                </form>
-                
-                {error && (
-                  <Alert 
-                    type="error"
-                    message={error}
-                    onClose={() => setError('')}
-                  />
+              <div className="col-md-6">
+                <label className="form-label">Verification Code</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={prescriptionCode}
+                  onChange={(e) => setPrescriptionCode(e.target.value)}
+                  placeholder="Enter 6-digit code"
+                  maxLength={6}
+                />
+              </div>
+            </div>
+            
+            <div className="d-flex gap-2 mt-4">
+              <button
+                className="btn btn-primary"
+                onClick={accessPrescription}
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Accessing...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-unlock me-2"></i>
+                    Access Prescription
+                  </>
                 )}
-              </div>
+              </button>
             </div>
           </div>
         </div>
-      )}
 
-      {/* Current Prescription Tab */}
-      {activeTab === 'current' && currentPrescription && (
-        <div className="row">
-          <div className="col-12">
-            <div className="card shadow-sm">
-              <div className="prescription-header card-header">
-                <h5 className="mb-0">
-                  <i className="fas fa-prescription me-2"></i>
-                  Prescription Details
-                </h5>
-              </div>
-              <div className="card-body p-4">
-                <div className="row mb-4">
-                  <div className="col-md-6">
-                    <div className="card bg-light h-100">
-                      <div className="card-body">
-                        <h6 className="text-primary">
-                          <i className="fas fa-user me-2"></i>Patient Information
-                        </h6>
-                        <p className="mb-2"><strong>Name:</strong> {currentPrescription.patient_name}</p>
-                        <p className="mb-2"><strong>Contact:</strong> {currentPrescription.patient_contact}</p>
-                        <p className="mb-0">
-                          <strong>Prescribed:</strong> {' '}
-                          {new Date(Number(currentPrescription.created_at) / 1000000).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </p>
+        {/* Prescription History */}
+        {prescriptionHistory.length > 0 && (
+          <div className="modern-card mb-4">
+            <div className="card-header">
+              <h5><i className="fas fa-history me-2"></i>Recent Prescriptions</h5>
+            </div>
+            <div className="card-body">
+              <div className="prescription-history">
+                {prescriptionHistory.map((entry, index) => (
+                  <div key={entry.id} className="history-item" onClick={() => loadPrescriptionFromHistory(entry)}>
+                    <div className="history-content">
+                      <div className="history-header">
+                        <h6 className="history-title">Prescription #{entry.id}</h6>
+                        <span className="history-date">{formatDateShort(entry.created_at)}</span>
                       </div>
-                    </div>
-                  </div>
-                  <div className="col-md-6">
-                    <div className="card bg-light h-100">
-                      <div className="card-body">
-                        <h6 className="text-primary">
-                          <i className="fas fa-info-circle me-2"></i>Prescription Details
-                        </h6>
-                        <p className="mb-2"><strong>ID:</strong> <code>{currentPrescription.id}</code></p>
-                        <p className="mb-2"><strong>Doctor ID:</strong> <code>{currentPrescription.doctor_id}</code></p>
-                        {currentPrescription.accessed_at && (
-                          <p className="mb-0">
-                            <strong>First Accessed:</strong> {' '}
-                            {new Date(Number(currentPrescription.accessed_at) / 1000000).toLocaleDateString()}
-                          </p>
+                      <div className="history-details">
+                        <span className="medicines-count">
+                          <i className="fas fa-pills me-1"></i>
+                          {entry.medicines_count} medicine{entry.medicines_count !== 1 ? 's' : ''}
+                        </span>
+                        {entry.doctor_notes && (
+                          <span className="has-notes">
+                            <i className="fas fa-sticky-note me-1"></i>
+                            Has notes
+                          </span>
                         )}
                       </div>
                     </div>
+                    <div className="history-action">
+                      <i className="fas fa-chevron-right"></i>
+                    </div>
                   </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* How to Use Guide */}
+        <div className="modern-card">
+          <div className="card-header bg-info">
+            <h5><i className="fas fa-info-circle me-2"></i>How to Use MedSeal</h5>
+          </div>
+          <div className="card-body">
+            <div className="row g-4">
+              <div className="col-md-4 text-center">
+                <div className="mb-3">
+                  <i className="fas fa-prescription fa-3x text-primary"></i>
                 </div>
-                
-                <h6 className="text-primary mb-3">
-                  <i className="fas fa-pills me-2"></i>Prescribed Medicines ({medicines.length})
-                </h6>
+                <h6>Access Prescription</h6>
+                <p className="text-muted small">Enter your prescription ID and code provided by your doctor</p>
+              </div>
+              <div className="col-md-4 text-center">
+                <div className="mb-3">
+                  <i className="fas fa-pills fa-3x text-success"></i>
+                </div>
+                <h6>View Medications</h6>
+                <p className="text-muted small">See detailed information about your prescribed medicines</p>
+              </div>
+              <div className="col-md-4 text-center">
+                <div className="mb-3">
+                  <i className="fas fa-robot fa-3x text-info"></i>
+                </div>
+                <h6>Get AI Help</h6>
+                <p className="text-muted small">Ask our AI assistant about your medications anytime</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="col-lg-4">
+        {/* Health Tips */}
+        <div className="modern-card">
+          <div className="card-header bg-success">
+            <h5><i className="fas fa-lightbulb me-2"></i>Health Tips</h5>
+          </div>
+          <div className="card-body">
+            <div className="health-tip mb-3 p-3 bg-light rounded">
+              <h6 className="text-success"><i className="fas fa-clock me-1"></i> Take on Time</h6>
+              <p className="small mb-0">Always take your medications at the prescribed times for best results.</p>
+            </div>
+            <div className="health-tip mb-3 p-3 bg-light rounded">
+              <h6 className="text-info"><i className="fas fa-utensils me-1"></i> Food Interactions</h6>
+              <p className="small mb-0">Some medicines work better with food, others on an empty stomach.</p>
+            </div>
+            <div className="health-tip p-3 bg-light rounded">
+              <h6 className="text-warning"><i className="fas fa-exclamation-triangle me-1"></i> Side Effects</h6>
+              <p className="small mb-0">Monitor for side effects and contact your doctor if you have concerns.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderPrescriptionContent = () => (
+    <div className="row">
+      <div className="col-12">
+        {currentPrescription && (
+          <>
+            {/* Prescription Header */}
+            <div className="modern-card mb-4">
+              <div className="card-header">
+                <h5><i className="fas fa-file-medical me-2"></i>Prescription Details</h5>
+              </div>
+              <div className="card-body">
                 <div className="row">
-                  {medicines.map((medicine, index) => (
-                    <div key={index} className="col-lg-6 mb-4">
-                      <div className="prescription-medicine card h-100">
-                        <div className="card-body">
-                          <div className="d-flex justify-content-between align-items-start mb-3">
-                            <h6 className="text-primary mb-0">{medicine.name || 'Unknown Medicine'}</h6>
-                            {medicine.guide_text && (
-                              <button
-                                className="btn btn-outline-primary btn-sm"
-                                onClick={() => viewMedicineGuide(medicine)}
-                              >
-                                <i className="fas fa-eye me-1"></i>Guide
-                              </button>
-                            )}
+                  <div className="col-md-6">
+                    <div className="info-item mb-3">
+                      <label className="text-muted small">Patient Name</label>
+                      <div className="fw-bold">{currentPrescription.patient_name}</div>
+                    </div>
+                    <div className="info-item mb-3">
+                      <label className="text-muted small">Contact</label>
+                      <div>{currentPrescription.patient_contact || 'N/A'}</div>
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="info-item mb-3">
+                      <label className="text-muted small">Prescription ID</label>
+                      <div className="fw-bold">{currentPrescription.id}</div>
+                    </div>
+                    <div className="info-item mb-3">
+                      <label className="text-muted small">Created Date</label>
+                      <div>{formatDate(currentPrescription.created_at)}</div>
+                    </div>
+                  </div>
+                  {currentPrescription.additional_notes && (
+                    <div className="col-12">
+                      <div className="info-item">
+                        <label className="text-muted small">Doctor's Notes</label>
+                        <div className="alert alert-info">
+                          <i className="fas fa-sticky-note me-2"></i>
+                          {currentPrescription.additional_notes}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Medications */}
+            <div className="modern-card">
+              <div className="card-header">
+                <h5><i className="fas fa-pills me-2"></i>Your Medications ({medicines.length})</h5>
+              </div>
+              <div className="card-body">
+                {medicines.length === 0 ? (
+                  <div className="text-center py-5 text-muted">
+                    <i className="fas fa-pills fa-3x mb-3"></i>
+                    <h5>No medications found</h5>
+                    <p>This prescription doesn't contain any medications.</p>
+                  </div>
+                ) : (
+                  <div className="row g-4">
+                    {medicines.map((med, index) => (
+                      <div key={index} className="col-lg-6">
+                        <div className="medicine-card h-100">
+                          <div className="medicine-header">
+                            <h6 className="medicine-name">
+                              <i className="fas fa-capsules me-2 text-primary"></i>
+                              {med.medicine?.name || 'Unknown Medicine'}
+                            </h6>
                           </div>
                           
-                          <div className="row text-sm">
-                            <div className="col-6 mb-2">
-                              <strong className="text-muted">Dosage:</strong><br/>
-                              <span className="badge bg-info">{medicine.custom_dosage || medicine.dosage || 'Not specified'}</span>
+                          <div className="medicine-details">
+                            <div className="detail-row">
+                              <span className="detail-label">Dosage:</span>
+                              <span className="detail-value">
+                                {med.custom_dosage || med.medicine?.dosage || 'N/A'}
+                              </span>
                             </div>
-                            <div className="col-6 mb-2">
-                              <strong className="text-muted">Frequency:</strong><br/>
-                              <span className="badge bg-secondary">{medicine.frequency || 'Not specified'}</span>
+                            <div className="detail-row">
+                              <span className="detail-label">Frequency:</span>
+                              <span className="detail-value">{med.medicine?.frequency || 'N/A'}</span>
                             </div>
-                            <div className="col-6 mb-2">
-                              <strong className="text-muted">Duration:</strong><br/>
-                              <span className="badge bg-warning text-dark">{medicine.duration || 'Not specified'}</span>
-                            </div>
-                            <div className="col-6 mb-2">
-                              <strong className="text-muted">Status:</strong><br/>
-                              <span className="badge bg-success">Active</span>
+                            <div className="detail-row">
+                              <span className="detail-label">Duration:</span>
+                              <span className="detail-value">{med.medicine?.duration || 'N/A'}</span>
                             </div>
                           </div>
-                          
-                          {medicine.custom_instructions && (
-                            <div className="mt-3">
-                              <strong className="text-muted">Special Instructions:</strong>
-                              <p className="small mb-0 mt-1 p-2 bg-light rounded">{medicine.custom_instructions}</p>
+
+                          {med.custom_instructions && (
+                            <div className="medicine-instructions">
+                              <label className="text-muted small">Special Instructions:</label>
+                              <div className="alert alert-warning py-2">
+                                <i className="fas fa-exclamation-circle me-1"></i>
+                                {med.custom_instructions}
+                              </div>
                             </div>
                           )}
-                          
-                          <div className="mt-3">
-                            <strong className="text-muted">Side Effects:</strong>
-                            <p className="small text-danger mb-0 mt-1">{medicine.side_effects || 'None specified'}</p>
-                          </div>
-                          
-                          {medicine.guide_text && (
-                            <div className="mt-3">
-                              <button
-                                className="btn btn-outline-primary btn-sm w-100"
-                                onClick={() => viewMedicineGuide(medicine)}
-                              >
-                                <i className="fas fa-file-text me-2"></i>View Medicine Guide
-                              </button>
+
+                          {med.medicine?.side_effects && (
+                            <div className="medicine-side-effects">
+                              <label className="text-muted small">Possible Side Effects:</label>
+                              <div className="text-muted small mt-1">
+                                {med.medicine.side_effects}
+                              </div>
                             </div>
                           )}
-                          
-                          {/* Debug info */}
-                          {process.env.NODE_ENV === 'development' && (
-                            <div className="mt-3">
-                              <small className="text-muted">
-                                <strong>Debug:</strong> ID: {medicine.id}, PDF: {medicine.guide_pdf_data ? 'Yes' : 'No'}
-                              </small>
+
+                          {/* Enhanced Guide Text Display */}
+                          {med.medicine?.guide_text && med.medicine.guide_text !== 'No guide available' && (
+                            <div className="medicine-guide mt-3">
+                              <label className="text-muted small">Medicine Guide:</label>
+                              <div className="guide-preview bg-light p-2 rounded">
+                                <div className="guide-text-preview" style={{ maxHeight: '100px', overflow: 'hidden' }}>
+                                  {med.medicine.guide_text.substring(0, 200)}
+                                  {med.medicine.guide_text.length > 200 && '...'}
+                                </div>
+                                {med.medicine.guide_text.length > 200 && (
+                                  <button 
+                                    className="btn btn-sm btn-link p-0 mt-2"
+                                    onClick={() => {
+                                      // Create modal to show full guide text with proper backdrop
+                                      const modal = document.createElement('div');
+                                      modal.className = 'modal fade show';
+                                      modal.style.display = 'block';
+                                      modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                                      modal.style.position = 'fixed';
+                                      modal.style.top = '0';
+                                      modal.style.left = '0';
+                                      modal.style.width = '100%';
+                                      modal.style.height = '100%';
+                                      modal.style.zIndex = '1050';
+                                      
+                                      const closeModal = () => {
+                                        modal.remove();
+                                      };
+                                      
+                                      modal.innerHTML = `
+                                        <div class="modal-dialog modal-lg">
+                                          <div class="modal-content">
+                                            <div class="modal-header">
+                                              <h5 class="modal-title">Medicine Guide - ${med.medicine.name}</h5>
+                                              <button type="button" class="btn-close" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                              <div class="mb-3">
+                                                <strong>Source:</strong> ${med.medicine.guide_source || 'Medical Database'}
+                                              </div>
+                                              <div class="guide-text" style="white-space: pre-wrap; max-height: 400px; overflow-y: auto; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 0.9em; line-height: 1.5; background: #f8f9fa; padding: 15px; border-radius: 5px;">
+                                                ${med.medicine.guide_text}
+                                              </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                              <button type="button" class="btn btn-secondary close-modal-btn">Close</button>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      `;
+                                      
+                                      // Add event listeners for closing
+                                      modal.addEventListener('click', (e) => {
+                                        if (e.target === modal) {
+                                          closeModal();
+                                        }
+                                      });
+                                      
+                                      modal.querySelector('.btn-close').addEventListener('click', closeModal);
+                                      modal.querySelector('.close-modal-btn').addEventListener('click', closeModal);
+                                      
+                                      // Add escape key listener
+                                      const escapeListener = (e) => {
+                                        if (e.key === 'Escape') {
+                                          closeModal();
+                                          document.removeEventListener('keydown', escapeListener);
+                                        }
+                                      };
+                                      document.addEventListener('keydown', escapeListener);
+                                      
+                                      document.body.appendChild(modal);
+                                    }}
+                                  >
+                                    Read Full Guide
+                                  </button>
+                                )}
+                              </div>
                             </div>
+                          )}
+
+                          <div className="medicine-actions mt-3">
+                            <button 
+                              className="btn btn-outline-info btn-sm me-2"
+                              onClick={() => openAIAssistant({
+                                prescription: `Specific question about ${med.medicine?.name}: ${med.medicine?.side_effects || 'No side effects listed'}. Guide: ${med.medicine?.guide_text || 'No guide available'}`
+                            }, 'prescription')}
+                          >
+                            <i className="fas fa-robot me-1"></i>
+                            Ask AI About This
+                          </button>
+                          {med.medicine?.guide_text && med.medicine.guide_text !== 'No guide available' && (
+                            <button 
+                              className="btn btn-outline-success btn-sm"
+                              onClick={() => {
+                                showAlert('success', `Medicine Guide Available: Click "Read Full Guide" above to view complete information about ${med.medicine.name}.`);
+                              }}
+                            >
+                              <i className="fas fa-book-medical me-1"></i>
+                              Guide Available
+                            </button>
                           )}
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
-                
-                {currentPrescription.additional_notes && (
-                  <div className="mt-4">
-                    <h6 className="text-primary">
-                      <i className="fas fa-sticky-note me-2"></i>Additional Notes
-                    </h6>
-                    <div className="alert alert-light border-start border-primary border-4">
-                      {currentPrescription.additional_notes}
-                    </div>
-                  </div>
-                )}
-                
-                <div className="mt-4 p-4 bg-warning bg-opacity-25 rounded">
-                  <h6 className="text-warning">
-                    <i className="fas fa-exclamation-triangle me-2"></i>
-                    Important Safety Guidelines
-                  </h6>
-                  <div className="row">
-                    <div className="col-md-6">
-                      <ul className="small mb-0">
-                        <li>Take medicines exactly as prescribed</li>
-                        <li>Complete the full course even if you feel better</li>
-                        <li>Don't share medicines with others</li>
-                      </ul>
-                    </div>
-                    <div className="col-md-6">
-                      <ul className="small mb-0">
-                        <li>Store medicines in a cool, dry place</li>
-                        <li>Contact your doctor if you experience severe reactions</li>
-                        <li>Keep this prescription record for your medical history</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  </div>
+  );
+
+  return (
+    <div className="dashboard-layout">
+      {/* Sidebar */}
+      <div className="dashboard-sidebar">
+        <div className="sidebar-header">
+          <div className="doctor-info">
+            <div className="doctor-avatar">
+              <i className="fas fa-user patient-avatar"></i>
+            </div>
+            <div className="doctor-details">
+              <h6 className="doctor-name">{user.name}</h6>
+              <p className="doctor-license">Patient Portal</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="sidebar-nav">
+          <button 
+            className={`sidebar-item ${activeTab === 'home' ? 'active' : ''}`}
+            onClick={() => setActiveTab('home')}
+          >
+            <i className="fas fa-home"></i>
+            <span>Home</span>
+          </button>
+          
+          <button 
+            className={`sidebar-item ${activeTab === 'prescription' ? 'active' : ''}`}
+            onClick={() => setActiveTab('prescription')}
+            disabled={!currentPrescription}
+          >
+            <i className="fas fa-prescription"></i>
+            <span>My Prescription</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="dashboard-main">
+        <div className="dashboard-content">
+          <div className="content-header">
+            <h2 className="content-title">
+              {activeTab === 'home' && 'Welcome to MedSeal'}
+              {activeTab === 'prescription' && 'My Prescription'}
+            </h2>
+            <p className="content-subtitle">
+              {activeTab === 'home' && 'Your secure digital health companion'}
+              {activeTab === 'prescription' && 'View and manage your prescribed medications'}
+            </p>
+          </div>
+
+          {activeTab === 'home' && renderHomeContent()}
+          {activeTab === 'prescription' && renderPrescriptionContent()}
+        </div>
+      </div>
+
+      {/* Health Partner Widget Toggle Button */}
+      <button 
+        className="health-widget-toggle"
+        onClick={toggleHealthWidget}
+        title="MedSeal Health Partner"
+      >
+        <i className="fas fa-robot"></i>
+      </button>
+
+      {/* Health Partner Widget */}
+      {showHealthWidget && !widgetChatMode && (
+        <div className="health-widget">
+          <div className="health-widget-header">
+            <div className="d-flex align-items-center">
+              <div className="widget-avatar">
+                <i className="fas fa-heart"></i>
               </div>
+              <div className="ms-2">
+                <h6 className="mb-0">Health Partner</h6>
+                <small>AI Assistant</small>
+              </div>
+            </div>
+            <button 
+              className="btn btn-sm btn-outline-light"
+              onClick={toggleHealthWidget}
+            >
+              <i className="fas fa-times"></i>
+            </button>
+          </div>
+          <div className="health-widget-body">
+            <p className="small mb-3">
+              Your AI health assistant is ready to help with medication questions.
+            </p>
+            <div className="d-grid gap-2">
+              <button 
+                className="btn btn-primary btn-sm"
+                onClick={() => openWidgetChat('general')}
+              >
+                <i className="fas fa-comments me-2"></i>
+                General Chat
+              </button>
+              <button 
+                className="btn btn-outline-info btn-sm"
+                onClick={() => openAIAssistant(null, 'general')}
+              >
+                <i className="fas fa-expand me-2"></i>
+                Full Chat
+              </button>
+              <button 
+                className="btn btn-outline-secondary btn-sm"
+                onClick={() => {
+                  if (currentPrescription) {
+                    openAIAssistant(null, 'prescription');
+                  } else {
+                    showAlert('warning', 'Please access a prescription first to use prescription mode.');
+                  }
+                }}
+              >
+                <i className="fas fa-pills me-2"></i>
+                Prescription Mode
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Prescription History Tab */}
-      {activeTab === 'history' && (
-        <div className="row">
-          <div className="col-12">
-            <div className="card shadow-sm">
-              <div className="card-header bg-info text-white">
-                <h5 className="mb-0">
-                  <i className="fas fa-history me-2"></i>
-                  Your Prescription History
-                </h5>
-              </div>
-              <div className="card-body">
-                {prescriptionHistory.length === 0 ? (
-                  <div className="text-center py-5">
-                    <i className="fas fa-prescription fa-3x text-muted mb-3"></i>
-                    <h5 className="text-muted">No Prescription History</h5>
-                    <p className="text-muted">Access your first prescription to start building your medical history.</p>
-                    <button 
-                      className="btn btn-primary"
-                      onClick={() => setActiveTab('access')}
-                    >
-                      <i className="fas fa-key me-2"></i>Access Prescription
-                    </button>
-                  </div>
-                ) : (
-                  <div className="row">
-                    {prescriptionHistory.map((prescription, index) => (
-                      <div key={`history-${prescription.id}-${index}`} className="col-lg-6 mb-4">
-                        <div className="card border h-100">
-                          <div className="card-body">
-                            <div className="d-flex justify-content-between align-items-start mb-3">
-                              <div>
-                                <h6 className="mb-1">Prescription #{prescription.id}</h6>
-                                <small className="text-muted">
-                                  {new Date(Number(prescription.created_at) / 1000000).toLocaleDateString('en-US', {
-                                    year: 'numeric',
-                                    month: 'short',
-                                    day: 'numeric'
-                                  })}
-                                </small>
-                              </div>
-                              <div className="d-flex flex-column align-items-end">
-                                <span className="badge bg-primary mb-1">
-                                  {prescription.medicines?.length || 0} medicine{(prescription.medicines?.length || 0) !== 1 ? 's' : ''}
-                                </span>
-                                <span className="badge bg-success">
-                                  Accessed
-                                </span>
-                              </div>
-                            </div>
-                            
-                            <p className="mb-2">
-                              <strong>Patient:</strong> {prescription.patient_name}
-                            </p>
-                            <p className="mb-3">
-                              <strong>Doctor ID:</strong> <code className="small">{prescription.doctor_id}</code>
-                            </p>
-                            
-                            {prescription.additional_notes && (
-                              <p className="mb-3">
-                                <strong>Notes:</strong> 
-                                <span className="text-muted small d-block">{prescription.additional_notes}</span>
-                              </p>
-                            )}
-                            
-                            <button 
-                              className="btn btn-outline-primary btn-sm w-100"
-                              onClick={() => viewHistoryPrescription(prescription)}
-                              disabled={loading}
-                            >
-                              {loading ? (
-                                <>
-                                  <span className="spinner-border spinner-border-sm me-2"></span>
-                                  Loading...
-                                </>
-                              ) : (
-                                <>
-                                  <i className="fas fa-eye me-2"></i>
-                                  View Details
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                {error && (
-                  <div className="alert alert-danger mt-3">
-                    <i className="fas fa-exclamation-triangle me-2"></i>
-                    {error}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Health Partner Widget Chat */}
+      {showHealthWidget && widgetChatMode && (
+        <WidgetChat
+          userType="patient"
+          contextData={aiChatContext}
+          onClose={toggleHealthWidget}
+          onExpand={() => {
+            setWidgetChatMode(false);
+            openAIAssistant();
+          }}
+          showAlert={showAlert}
+        />
+      )}
+
+      {/* AI Chat Modal */}
+      {showAIChat && (
+        <AIChat
+          userType="patient"
+          contextData={aiChatContext}
+          onClose={closeAIAssistant}
+          title="MedSeal Health Partner - Your Health Guide"
+          initialMode={currentPrescription ? 'prescription' : 'general'}
+        />
       )}
     </div>
   );

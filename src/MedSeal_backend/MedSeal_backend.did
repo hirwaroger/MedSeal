@@ -19,8 +19,8 @@ type Medicine = record {
     frequency: text;
     duration: text;
     side_effects: text;
-    guide_text: text; // Required field
-    guide_source: text; // Required field
+    guide_text: text; // Changed to required
+    guide_source: text; // Changed to required
     created_by: text;
     created_at: nat64;
     is_active: bool;
@@ -57,8 +57,8 @@ type CreateMedicineRequest = record {
     frequency: text;
     duration: text;
     side_effects: text;
-    guide_text: text; // Required field
-    guide_source: text; // Required field
+    guide_text: text; // Changed to required
+    guide_source: text; // Changed to required
 };
 
 type CreatePrescriptionRequest = record {
@@ -88,6 +88,25 @@ type Result_String = variant {
     Err: text;
 };
 
+type ChatMessage = record {
+    role: text;
+    content: text;
+};
+
+type GeneralChatContext = record {
+    user_type: text;
+};
+
+type PrescriptionChatContext = record {
+    user_type: text;
+    prescription_data: text;
+};
+
+type MedicineChatContext = record {
+    user_type: text;
+    medicine_data: text;
+};
+
 service : {
     // User Management
     "register_user": (RegisterUserRequest) -> (Result_User);
@@ -115,4 +134,9 @@ service : {
     
     // Utility
     "generate_user_id": () -> (text);
+    
+    // AI Assistant Functions - Separated by context
+    "chat_general": (vec ChatMessage, GeneralChatContext) -> (Result_String);
+    "chat_prescription": (vec ChatMessage, PrescriptionChatContext) -> (Result_String);
+    "chat_medicine": (vec ChatMessage, MedicineChatContext) -> (Result_String);
 }
