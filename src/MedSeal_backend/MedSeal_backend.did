@@ -9,6 +9,7 @@ type User = record {
     email: text;
     role: UserRole;
     license_number: text;
+    user_principal: text; // Renamed from `principal`
     created_at: nat64;
 };
 
@@ -49,6 +50,14 @@ type RegisterUserRequest = record {
     email: text;
     role: UserRole;
     license_number: text;
+};
+
+type RegisterUserWithPrincipalRequest = record {
+    name: text;
+    email: text;
+    role: UserRole;
+    license_number: text;
+    user_principal: text; // Renamed from `principal`
 };
 
 type CreateMedicineRequest = record {
@@ -110,7 +119,10 @@ type MedicineChatContext = record {
 service : {
     // User Management
     "register_user": (RegisterUserRequest) -> (Result_User);
+    "register_user_with_principal": (RegisterUserWithPrincipalRequest) -> (Result_User);
+    "register_user_simple": (text, text, UserRole, text) -> (Result_User);
     "get_user": (text) -> (opt User) query;
+    "get_user_by_principal": (text) -> (Result_User) query;
     "authenticate_user": (text, text) -> (Result_User) query;
     
     // Medicine Repository (Doctors only)
@@ -125,7 +137,7 @@ service : {
     "get_all_medicines_debug": () -> (vec Medicine) query;
     "get_current_caller": () -> (text) query;
     "get_principal_mapping_debug": () -> (vec record { text; text }) query;
-    "debug_get_prescription_by_id": (text) -> (opt Prescription) query;
+    "debug_get_prescription_with_medicines": (text) -> (Result_String) query;
     
     // Prescription Management
     "create_prescription": (CreatePrescriptionRequest) -> (Result_String);
@@ -134,9 +146,12 @@ service : {
     
     // Utility
     "generate_user_id": () -> (text);
+    "greet": (text) -> (text) query;
     
     // AI Assistant Functions - Separated by context
     "chat_general": (vec ChatMessage, GeneralChatContext) -> (Result_String);
     "chat_prescription": (vec ChatMessage, PrescriptionChatContext) -> (Result_String);
     "chat_medicine": (vec ChatMessage, MedicineChatContext) -> (Result_String);
+    "get_prescription_ai_help": (text, text, text) -> (Result_String);
+    "get_medicine_ai_help": (text) -> (Result_String);
 }
