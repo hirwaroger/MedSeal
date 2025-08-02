@@ -1,35 +1,28 @@
 // Session management utilities
-export const SESSION_STORAGE_KEYS = {
-  USER_SESSION: 'medseal_session',
-  CURRENT_VIEW: 'medseal_current_view',
-  LAST_ACTIVITY: 'medseal_last_activity'
-};
-
-// Session timeout in milliseconds (24 hours)
-const SESSION_TIMEOUT = 24 * 60 * 60 * 1000;
+const SESSION_KEY = 'medSeal_session';
+const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
 export const sessionUtils = {
   // Save user session
-  saveSession: (user, view = 'dashboard') => {
+  saveSession: (user, currentView = 'dashboard') => {
     try {
-      console.log('Saving session for user:', user.name, 'view:', view);
+      // Validate user object has required fields before saving
+      if (!user || !user.name || !user.id) {
+        console.error('Invalid user data for session', user);
+        return false;
+      }
       
       const sessionData = {
         user,
+        currentView,
         timestamp: Date.now(),
-        view
+        expiresAt: Date.now() + SESSION_DURATION,
+        isAuthenticated: true,
+        walletConnected: true
       };
       
-      localStorage.setItem(SESSION_STORAGE_KEYS.USER_SESSION, JSON.stringify(sessionData));
-      localStorage.setItem(SESSION_STORAGE_KEYS.CURRENT_VIEW, view);
-      localStorage.setItem(SESSION_STORAGE_KEYS.LAST_ACTIVITY, Date.now().toString());
-      
-      console.log('Session saved successfully');
-      
-      // Verify the session was saved
-      const saved = localStorage.getItem(SESSION_STORAGE_KEYS.USER_SESSION);
-      console.log('Verification - saved session exists:', !!saved);
-      
+      localStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
+      console.log('Session saved successfully for user:', user.name);
       return true;
     } catch (error) {
       console.error('Error saving session:', error);
@@ -40,43 +33,39 @@ export const sessionUtils = {
   // Load user session
   loadSession: () => {
     try {
-      console.log('Loading session from localStorage...');
-      
-      const sessionData = localStorage.getItem(SESSION_STORAGE_KEYS.USER_SESSION);
-      const lastActivity = localStorage.getItem(SESSION_STORAGE_KEYS.LAST_ACTIVITY);
-      
-      console.log('Session data exists:', !!sessionData);
-      console.log('Last activity exists:', !!lastActivity);
-      
-      if (!sessionData || !lastActivity) {
-        console.log('No session data found');
+      const sessionData = localStorage.getItem(SESSION_KEY);
+      if (!sessionData) {
+        console.log('No session data found in localStorage');
         return null;
       }
 
       const session = JSON.parse(sessionData);
-      const activityTime = parseInt(lastActivity);
       const now = Date.now();
 
-      console.log('Session parsed:', session.user?.name);
-      console.log('Activity time:', new Date(activityTime));
-      console.log('Current time:', new Date(now));
-      console.log('Time difference (hours):', (now - activityTime) / (1000 * 60 * 60));
-
       // Check if session has expired
-      if (now - activityTime > SESSION_TIMEOUT) {
-        console.log('Session expired, clearing...');
+      if (now > session.expiresAt) {
+        console.log('Session has expired, clearing...');
         sessionUtils.clearSession();
         return null;
       }
 
-      // Update last activity
-      localStorage.setItem(SESSION_STORAGE_KEYS.LAST_ACTIVITY, now.toString());
+      // Check if session is older than 6 hours - require re-authentication for security
+      const sixHours = 6 * 60 * 60 * 1000;
+      if (now - session.timestamp > sixHours) {
+        console.log('Session is too old, requiring re-authentication');
+        sessionUtils.clearSession();
+        return null;
+      }
       
-      console.log('Session loaded successfully for user:', session.user.name);
-      return {
-        user: session.user,
-        view: session.view || 'dashboard'
-      };
+      // Verify user object has required data
+      if (!session.user || !session.user.name || !session.user.id) {
+        console.error('Invalid user data in session', session.user);
+        sessionUtils.clearSession();
+        return null;
+      }
+
+      console.log('Valid session loaded for user:', session.user.name);
+      return session;
     } catch (error) {
       console.error('Error loading session:', error);
       sessionUtils.clearSession();
@@ -87,10 +76,7 @@ export const sessionUtils = {
   // Clear user session
   clearSession: () => {
     try {
-      console.log('Clearing session...');
-      Object.values(SESSION_STORAGE_KEYS).forEach(key => {
-        localStorage.removeItem(key);
-      });
+      localStorage.removeItem(SESSION_KEY);
       console.log('Session cleared successfully');
       return true;
     } catch (error) {
@@ -99,28 +85,80 @@ export const sessionUtils = {
     }
   },
 
-  // Check if session is valid
-  isSessionValid: () => {
-    try {
-      const lastActivity = localStorage.getItem(SESSION_STORAGE_KEYS.LAST_ACTIVITY);
-      if (!lastActivity) return false;
-
-      const activityTime = parseInt(lastActivity);
-      const now = Date.now();
-
-      return (now - activityTime) <= SESSION_TIMEOUT;
-    } catch (error) {
-      console.error('Error checking session validity:', error);
-      return false;
-    }
-  },
-
   // Update last activity timestamp
   updateActivity: () => {
     try {
-      localStorage.setItem(SESSION_STORAGE_KEYS.LAST_ACTIVITY, Date.now().toString());
+      const sessionData = localStorage.getItem(SESSION_KEY);
+      if (sessionData) {
+        const session = JSON.parse(sessionData);
+        session.timestamp = Date.now();
+        localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+        console.log('Session activity updated');
+      }
     } catch (error) {
-      console.error('Error updating activity:', error);
+      console.error('Error updating session activity:', error);
     }
+  },
+
+  // Check if session is valid
+  isSessionValid: () => {
+    const session = sessionUtils.loadSession();
+    return session !== null;
+  },
+
+  // Check if user needs registration
+  needsRegistration: (isConnected, userFromBackend) => {
+    if (!isConnected) return false;
+    return !userFromBackend || userFromBackend === null;
+  },
+
+  // Get redirect path based on user role
+  getRedirectPath: (user) => {
+    if (!user) return '/login';
+    
+    // Make sure user has a role before trying to process it
+    if (!user.role) {
+      console.error('User has no role defined', user);
+      return '/login';
+    }
+    
+    const userRole = typeof user.role === 'string' ? user.role : 
+                    (user.role?.Doctor !== undefined ? 'Doctor' : 'Patient');
+    return userRole === 'Doctor' ? '/doctor' : '/patient';
+  },
+  
+  // Debug session state and auth flow
+  debugAuthState: (isConnected, user, loading) => {
+    const sessionData = localStorage.getItem(SESSION_KEY);
+    const hasSession = !!sessionData;
+    let sessionUser = null;
+    
+    try {
+      if (hasSession) {
+        const session = JSON.parse(sessionData);
+        sessionUser = session.user;
+      }
+    } catch (e) {
+      console.error('Failed to parse session data:', e);
+    }
+    
+    console.table({
+      isConnected,
+      loading,
+      hasUser: !!user,
+      userId: user?.id || 'none',
+      userName: user?.name || 'none',
+      hasSession,
+      sessionUserId: sessionUser?.id || 'none',
+      sessionUserName: sessionUser?.name || 'none'
+    });
+    
+    return {
+      isConnected,
+      loading,
+      hasUser: !!user,
+      hasSession,
+      sessionValid: hasSession && sessionUser?.id === user?.id
+    };
   }
 };
