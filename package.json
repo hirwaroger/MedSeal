@@ -4,6 +4,8 @@
     "npm": ">=7.0.0"
   },
   "name": "MedSeal",
+  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "prebuild": "npm run prebuild --workspaces --if-present",
@@ -14,5 +16,14 @@
   "type": "module",
   "workspaces": [
     "src/MedSeal_frontend"
-  ]
+  ],
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.12",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.12"
+  },
+  "dependencies": {
+    "childprocess": "^2.0.2"
+  }
 }
