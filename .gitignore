@@ -27,3 +27,5 @@ dist/
 # environment variables
 .env
 cm.sh
+a.js
+logs.txt
