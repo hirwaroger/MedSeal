@@ -3,6 +3,48 @@ use ic_cdk::api::time;
 use std::collections::HashMap;
 use std::cell::RefCell;
 
+// ICRC standards support for NFID
+#[derive(CandidType, Deserialize, Eq, PartialEq, Debug)]
+pub struct SupportedStandard {
+    pub url: String,
+    pub name: String,
+}
+
+#[ic_cdk::query]
+fn icrc10_supported_standards() -> Vec<SupportedStandard> {
+    vec![
+        SupportedStandard {
+            url: "https://github.com/dfinity/ICRC/blob/main/ICRCs/ICRC-10/ICRC-10.md".to_string(),
+            name: "ICRC-10".to_string(),
+        },
+        SupportedStandard {
+            url: "https://github.com/dfinity/wg-identity-authentication/blob/main/topics/icrc_28_trusted_origins.md".to_string(),
+            name: "ICRC-28".to_string(),
+        },
+    ]
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+pub struct Icrc28TrustedOriginsResponse {
+    pub trusted_origins: Vec<String>
+}
+
+#[ic_cdk::update]
+fn icrc28_trusted_origins() -> Icrc28TrustedOriginsResponse {
+    let trusted_origins = vec![
+        String::from("https://your-frontend-canister-id.icp0.io"),
+        String::from("https://your-frontend-canister-id.raw.icp0.io"),
+        String::from("https://your-frontend-canister-id.ic0.app"),
+        String::from("https://your-frontend-canister-id.raw.ic0.app"),
+        String::from("https://your-frontend-canister-id.icp0.icp-api.io"),
+        String::from("https://your-frontend-canister-id.icp-api.io"),
+        String::from("http://localhost:3000"), // For local development
+        String::from("http://127.0.0.1:3000"), // For local development
+    ];
+    
+    Icrc28TrustedOriginsResponse { trusted_origins }
+}
+
 #[derive(CandidType, Deserialize, Clone, Debug)]
 pub enum UserRole {
     Doctor,
@@ -15,7 +57,8 @@ pub struct User {
     pub name: String,
     pub email: String,
     pub role: UserRole,
-    pub license_number: String, // Changed from Option<String> to String
+    pub license_number: String,
+    pub user_principal: String, // Renamed from `principal`
     pub created_at: u64,
 }
 
@@ -81,6 +124,15 @@ pub struct CreatePrescriptionRequest {
     pub additional_notes: String,
 }
 
+#[derive(CandidType, Deserialize)]
+pub struct RegisterUserWithPrincipalRequest {
+    pub name: String,
+    pub email: String,
+    pub role: UserRole,
+    pub license_number: String,
+    pub user_principal: String, // Renamed from `principal`
+}
+
 type Result<T> = std::result::Result<T, String>;
 
 // Add a mapping from principal to user ID
@@ -90,6 +142,7 @@ thread_local! {
     static PRESCRIPTIONS: RefCell<HashMap<String, Prescription>> = RefCell::new(HashMap::new());
     static USER_EMAILS: RefCell<HashMap<String, String>> = RefCell::new(HashMap::new()); // email -> user_id
     static PRINCIPAL_TO_USER: RefCell<HashMap<String, String>> = RefCell::new(HashMap::new()); // principal -> user_id
+    static USER_PRINCIPALS: RefCell<HashMap<String, String>> = RefCell::new(HashMap::new()); // user_id -> principal
 }
 
 #[ic_cdk::update]
@@ -119,6 +172,7 @@ fn register_user(request: RegisterUserRequest) -> Result<User> {
         email: request.email.clone(),
         role: request.role,
         license_number: request.license_number,
+        user_principal: caller_principal.clone(), // set user_principal
         created_at: time(),
     };
     
@@ -140,11 +194,176 @@ fn register_user(request: RegisterUserRequest) -> Result<User> {
     Ok(user)
 }
 
+#[ic_cdk::update]
+fn register_user_with_principal(request: RegisterUserWithPrincipalRequest) -> Result<User> {
+    let user_id = generate_user_id();
+    let caller_principal = ic_cdk::caller().to_string();
+    
+    // Verify the caller matches the provided principal
+    if caller_principal != request.user_principal {
+        return Err("Principal mismatch".to_string());
+    }
+    
+    // Check if email already exists
+    let email_exists = USER_EMAILS.with(|emails| {
+        emails.borrow().contains_key(&request.email)
+    });
+    
+    if email_exists {
+        return Err("Email already registered".to_string());
+    }
+    
+    // Check if principal already has an account
+    let principal_exists = PRINCIPAL_TO_USER.with(|mapping| {
+        mapping.borrow().contains_key(&request.user_principal)
+    });
+    
+    if principal_exists {
+        return Err("Wallet already has an account".to_string());
+    }
+    
+    // Validate doctor license number - check if role is Doctor and license_number is provided
+    if matches!(request.role, UserRole::Doctor) {
+        if request.license_number.trim().is_empty() {
+            return Err("License number is required for doctors".to_string());
+        }
+    }
+    
+    let user = User {
+        id: user_id.clone(),
+        name: request.name,
+        email: request.email.clone(),
+        role: request.role,
+        license_number: request.license_number,
+        user_principal: request.user_principal.clone(), // set user_principal
+        created_at: time(),
+    };
+    
+    // Store user data
+    USERS.with(|users| {
+        users.borrow_mut().insert(user_id.clone(), user.clone());
+    });
+    
+    // Store email mapping
+    USER_EMAILS.with(|emails| {
+        emails.borrow_mut().insert(request.email, user_id.clone());
+    });
+    
+    // Store principal mappings
+    PRINCIPAL_TO_USER.with(|mapping| {
+        mapping.borrow_mut().insert(request.user_principal.clone(), user_id.clone());
+    });
+    
+    USER_PRINCIPALS.with(|mapping| {
+        mapping.borrow_mut().insert(user_id.clone(), request.user_principal.clone());
+    });
+    
+    ic_cdk::println!("Registered user {} with principal {} and user_id {}", user.name, request.user_principal, user_id);
+    
+    Ok(user)
+}
+
+// Add a simpler registration function as fallback
+#[ic_cdk::update]
+fn register_user_simple(name: String, email: String, role: UserRole, license_number: String) -> Result<User> {
+    let user_id = generate_user_id();
+    let caller_principal = ic_cdk::caller().to_string();
+    
+    // Check if email already exists
+    let email_exists = USER_EMAILS.with(|emails| {
+        emails.borrow().contains_key(&email)
+    });
+    
+    if email_exists {
+        return Err("Email already registered".to_string());
+    }
+    
+    // Check if principal already has an account
+    let principal_exists = PRINCIPAL_TO_USER.with(|mapping| {
+        mapping.borrow().contains_key(&caller_principal)
+    });
+    
+    if principal_exists {
+        return Err("Wallet already has an account".to_string());
+    }
+    
+    // Validate doctor license number
+    if matches!(role, UserRole::Doctor) {
+        if license_number.trim().is_empty() {
+            return Err("License number is required for doctors".to_string());
+        }
+    }
+    
+    let user = User {
+        id: user_id.clone(),
+        name: name.clone(),
+        email: email.clone(),
+        role: role.clone(),
+        license_number: license_number.clone(),
+        user_principal: caller_principal.clone(), // set user_principal
+        created_at: time(),
+    };
+    
+    // Store user data
+    USERS.with(|users| {
+        users.borrow_mut().insert(user_id.clone(), user.clone());
+    });
+    
+    // Store email mapping
+    USER_EMAILS.with(|emails| {
+        emails.borrow_mut().insert(email, user_id.clone());
+    });
+    
+    // Store principal mappings
+    PRINCIPAL_TO_USER.with(|mapping| {
+        mapping.borrow_mut().insert(caller_principal.clone(), user_id.clone());
+    });
+    
+    USER_PRINCIPALS.with(|mapping| {
+        mapping.borrow_mut().insert(user_id.clone(), caller_principal.clone());
+    });
+    
+    ic_cdk::println!("Registered user {} with principal {} and user_id {}", name, caller_principal, user_id);
+    
+    Ok(user)
+}
+
 #[ic_cdk::query]
 fn get_user(user_id: String) -> Option<User> {
     USERS.with(|users| {
         users.borrow().get(&user_id).cloned()
     })
+}
+
+#[ic_cdk::query]
+fn get_user_by_principal(user_principal: String) -> Result<User> {
+    ic_cdk::println!("Getting user by principal: {}", user_principal);
+    
+    let user_id = PRINCIPAL_TO_USER.with(|mapping| {
+        mapping.borrow().get(&user_principal).cloned()
+    });
+    
+    match user_id {
+        Some(id) => {
+            USERS.with(|users| {
+                let user = users.borrow().get(&id).cloned();
+                match user {
+                    Some(u) => {
+                        ic_cdk::println!("Found user: {}", u.name);
+                        Ok(u)
+                    },
+                    None => {
+                        ic_cdk::println!("User not found in USERS map for id: {}", id);
+                        Err("User not found".to_string())
+                    }
+                }
+            })
+        },
+        None => {
+            ic_cdk::println!("Principal not found in mapping");
+            Err("User not found".to_string())
+        }
+    }
 }
 
 #[ic_cdk::query]
@@ -193,7 +412,6 @@ fn authenticate_user(email: String, _password: String) -> Result<User> {
 fn add_medicine(request: CreateMedicineRequest) -> Result<Medicine> {
     let caller_principal = ic_cdk::caller().to_string();
     
-    // Get the user ID associated with this principal
     let doctor_user_id = PRINCIPAL_TO_USER.with(|mapping| {
         mapping.borrow().get(&caller_principal).cloned()
     });
@@ -206,11 +424,20 @@ fn add_medicine(request: CreateMedicineRequest) -> Result<Medicine> {
         }
     };
     
-    let medicine_id = generate_id();
+    // Verify user is a doctor
+    let is_doctor = USERS.with(|users| {
+        if let Some(user) = users.borrow().get(&doctor_id) {
+            matches!(user.role, UserRole::Doctor)
+        } else {
+            false
+        }
+    });
     
-    // Debug logging
-    ic_cdk::println!("Adding medicine for doctor: {} (principal: {})", doctor_id, caller_principal);
-    ic_cdk::println!("Medicine data: {:?}", request);
+    if !is_doctor {
+        return Err("Only doctors can add medicines".to_string());
+    }
+    
+    let medicine_id = generate_id();
     
     let medicine = Medicine {
         id: medicine_id.clone(),
