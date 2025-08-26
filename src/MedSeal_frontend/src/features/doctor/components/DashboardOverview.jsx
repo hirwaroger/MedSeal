@@ -18,16 +18,6 @@ function DashboardOverview({ user, medicines, prescriptions, onTabChange, onOpen
               AI Assistant
             </button>
             <button 
-              onClick={() => onOpenAI({
-                type: 'medicine_recommendations',
-                context: 'dashboard_overview'
-              }, 'recommendation')}
-              className="inline-flex items-center px-4 py-2 border border-purple-300 text-purple-700 font-medium rounded-lg hover:bg-purple-50 transition-colors"
-            >
-              <span className="mr-2">🧠</span>
-              Medicine Recommendations
-            </button>
-            <button 
               onClick={() => onTabChange('prescriptions')}
               className="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
             >

@@ -17,7 +17,7 @@ const parseMarkdown = (text) => {
     .replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-2 py-1 rounded text-sm font-mono">$1</code>');
 };
 
-const AIChat = ({ userType, contextData, onClose, title, initialMode = 'general' }) => {
+function AIChat({ userType, contextData, onClose, title, initialMode = 'general' }) {
   const [chatMode, setChatMode] = useState(initialMode);
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
@@ -46,6 +46,37 @@ const AIChat = ({ userType, contextData, onClose, title, initialMode = 'general'
       content: initialMessage
     }]);
   }, [chatMode, userType]);
+
+  useEffect(() => {
+    if (initialMode === 'medicine-recommendation' && contextData) {
+      const welcomeMessage = {
+        role: 'assistant',
+        content: `As your MedSeal AI Medical Assistant, I'm here to help you with medicine recommendations for your patient.
+
+**Patient Information:**
+${contextData.prescription || 'No patient info provided'}
+
+**Current Selected Medicines:**
+${contextData.currentMedicines || 'None selected yet'}
+
+**Additional Notes:**
+${contextData.notes || 'No additional notes'}
+
+**Available Medicines in Your Repository:**
+I have access to your ${contextData.medicines ? contextData.medicines.split('\n\n').length : 0} active medicines.
+
+Please tell me:
+1. What symptoms or conditions does the patient have?
+2. Any allergies or contraindications?
+3. Current medications they're taking?
+4. Any specific treatment goals?
+
+I can recommend appropriate medicines from your repository and suggest dosages, combinations, and precautions.`
+      };
+      
+      setMessages([welcomeMessage]);
+    }
+  }, [initialMode, contextData]);
 
   const getInitialMessage = () => {
     if (chatMode === 'prescription') {

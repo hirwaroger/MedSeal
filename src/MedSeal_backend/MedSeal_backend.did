@@ -9,7 +9,7 @@ type User = record {
     email: text;
     role: UserRole;
     license_number: text;
-    user_principal: text; // Renamed from `principal`
+    user_principal: text; // Ensure this field is present and used
     created_at: nat64;
 };
 
@@ -57,7 +57,7 @@ type RegisterUserWithPrincipalRequest = record {
     email: text;
     role: UserRole;
     license_number: text;
-    user_principal: text; // Renamed from `principal`
+    user_principal: text;
 };
 
 type CreateMedicineRequest = record {
@@ -123,6 +123,9 @@ service : {
     "register_user_simple": (text, text, UserRole, text) -> (Result_User);
     "get_user": (text) -> (opt User) query;
     "get_user_by_principal": (text) -> (Result_User) query;
+    "get_user_by_principal_detailed": (text) -> (Result_User) query;
+    "principal_has_account": (text) -> (bool) query;
+    "list_user_principals": () -> (vec record { text; text; text }) query; // (principal, user_id, email)
     "authenticate_user": (text, text) -> (Result_User) query;
     
     // Medicine Repository (Doctors only)
@@ -133,16 +136,18 @@ service : {
     "update_medicine": (text, CreateMedicineRequest) -> (Result_Medicine);
     "toggle_medicine_status": (text) -> (Result_Medicine);
     
-    // Debug methods (remove in production)
-    "get_all_medicines_debug": () -> (vec Medicine) query;
-    "get_current_caller": () -> (text) query;
-    "get_principal_mapping_debug": () -> (vec record { text; text }) query;
-    "debug_get_prescription_with_medicines": (text) -> (Result_String) query;
-    
     // Prescription Management
     "create_prescription": (CreatePrescriptionRequest) -> (Result_String);
     "get_prescription": (text, text) -> (Result_Prescription) query;
     "get_doctor_prescriptions": (text) -> (vec Prescription) query;
+    
+    // Debug and test methods
+    "test_backend_connection": () -> (text) query;
+    "get_all_medicines_debug": () -> (vec Medicine) query;
+    "get_current_caller": () -> (text) query;
+    "get_principal_mapping_debug": () -> (vec record { text; text }) query;
+    "debug_get_prescription_with_medicines": (text) -> (Result_String) query;
+    "debug_all_users": () -> (vec record { text; text; text }) query;
     
     // Utility
     "generate_user_id": () -> (text);

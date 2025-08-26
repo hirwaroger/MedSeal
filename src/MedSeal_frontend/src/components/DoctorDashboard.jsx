@@ -7,7 +7,6 @@ import AddMedicineForm from '../features/doctor/components/AddMedicineForm';
 import PrescriptionForm from '../features/doctor/components/PrescriptionForm';
 import PrescriptionHistory from '../features/doctor/components/PrescriptionHistory';
 import AIChat from './AIChat';
-import DoctorAIWidget from '../features/doctor/components/DoctorAIWidget';
 
 function DoctorDashboard({ user, showAlert }) {
   const [activeTab, setActiveTab] = useState('overview');
@@ -41,7 +40,25 @@ function DoctorDashboard({ user, showAlert }) {
   const openAIAssistant = (context = null, mode = 'general') => {
     let aiContext;
     
-    if (mode === 'prescription' || context) {
+    if (mode === 'medicine-recommendation') {
+      // Special mode for medicine recommendations
+      const medicinesText = medicines
+        .filter(m => m.is_active)
+        .map(m => `${m.name} (${m.dosage}): 
+  - Frequency: ${m.frequency}
+  - Duration: ${m.duration}  
+  - Side Effects: ${m.side_effects}
+  - Guide: ${m.guide_text ? m.guide_text.substring(0, 300) + '...' : 'No guide available'}`)
+        .join('\n\n');
+      
+      aiContext = {
+        medicines: medicinesText,
+        prescription: context?.patientInfo || null,
+        currentMedicines: context?.currentMedicines || null,
+        notes: context?.notes || null,
+        mode: 'medicine-recommendation'
+      };
+    } else if (mode === 'prescription' || context) {
       const medicinesText = medicines
         .filter(m => m.is_active)
         .map(m => `${m.name} (${m.dosage}): 
@@ -53,20 +70,17 @@ function DoctorDashboard({ user, showAlert }) {
       
       aiContext = {
         medicines: medicinesText,
-        prescription: context?.prescription || null,
-        context: context
+        prescription: context?.prescription || null
       };
     } else {
       aiContext = {
         medicines: null,
-        prescription: null,
-        context: context
+        prescription: null
       };
     }
     
     setAiChatContext(aiContext);
     setShowAIChat(true);
-    setShowAIWidget(false);
   };
 
   const closeAIAssistant = () => {
@@ -172,7 +186,6 @@ function DoctorDashboard({ user, showAlert }) {
           onUpdateMedicine={updateSelectedMedicine}
           onSubmit={createPrescription}
           onOpenAI={openAIAssistant}
-          onTabChange={setActiveTab}
           loading={prescriptionLoading}
         />
       )}
@@ -215,42 +228,67 @@ function DoctorDashboard({ user, showAlert }) {
       )}
 
       {/* AI Widget Toggle Button */}
-      {!showAIChat && (
-        <button
-          onClick={() => setShowAIWidget(true)}
-          className="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-colors z-30 flex items-center justify-center"
-        >
-          <span className="text-xl">🤖</span>
-        </button>
-      )}
+      <button
+        onClick={() => setShowAIWidget(!showAIWidget)}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center z-30"
+      >
+        <span className="text-xl">🤖</span>
+      </button>
 
       {/* AI Widget */}
       {showAIWidget && (
-        <DoctorAIWidget
-          onClose={() => setShowAIWidget(false)}
-          onGeneralChat={() => {
-            openAIAssistant(null, 'general');
-          }}
-          onMedicineChat={() => {
-            openAIAssistant({
-              type: 'medicine_repository',
-              medicines: medicines.filter(m => m.is_active)
-            }, 'medicine');
-          }}
-          onPrescriptionChat={() => {
-            openAIAssistant({
-              type: 'prescription_guidance',
-              medicines: medicines.filter(m => m.is_active)
-            }, 'prescription');
-          }}
-          onRecommendationChat={() => {
-            openAIAssistant({
-              type: 'medicine_recommendations',
-              medicines: medicines.filter(m => m.is_active)
-            }, 'recommendation');
-          }}
-          showAlert={showAlert}
-        />
+        <div className="fixed bottom-24 right-6 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-40">
+          <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-4 rounded-t-lg flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                <span>🤖</span>
+              </div>
+              <div>
+                <h3 className="font-semibold">AI Medical Assistant</h3>
+                <p className="text-xs text-purple-100">Smart healthcare support</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setShowAIWidget(false)}
+              className="text-white hover:bg-white/20 rounded p-1"
+            >
+              <span>✕</span>
+            </button>
+          </div>
+          <div className="p-4">
+            <p className="text-gray-700 mb-4 text-sm">
+              Get AI assistance for medical decisions, drug interactions, and patient care.
+            </p>
+            <div className="space-y-2">
+              <button 
+                onClick={() => openAIAssistant(null, 'general')}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
+              >
+                <span>💬</span>
+                General Medical Chat
+              </button>
+              <button 
+                onClick={() => openAIAssistant({ medicines: medicines.filter(m => m.is_active) }, 'medicine')}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+              >
+                <span>💊</span>
+                Medicine Consultation
+              </button>
+              <button 
+                onClick={() => openAIAssistant(null, 'medicine-recommendation')}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+              >
+                <span>🎯</span>
+                Medicine Recommendations
+              </button>
+            </div>
+            <div className="mt-4 pt-3 border-t border-gray-200">
+              <p className="text-xs text-gray-500 text-center">
+                AI responses are advisory and should complement professional judgment
+              </p>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* AI Chat Modal */}
@@ -259,8 +297,11 @@ function DoctorDashboard({ user, showAlert }) {
           userType="doctor"
           contextData={aiChatContext}
           onClose={closeAIAssistant}
-          title="MedSeal Health Partner - Medical Assistant"
-          initialMode="general"
+          title={aiChatContext?.mode === 'medicine-recommendation' 
+            ? "MedSeal AI - Medicine Recommendations" 
+            : "MedSeal Health Partner - Medical Assistant"
+          }
+          initialMode={aiChatContext?.mode || "general"}
         />
       )}
     </div>

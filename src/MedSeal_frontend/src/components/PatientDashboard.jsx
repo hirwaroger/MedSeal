@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { usePrescription } from '../features/patient/hooks/usePrescription';
 import PrescriptionAccess from '../features/patient/components/PrescriptionAccess';
 import PrescriptionHistory from '../features/patient/components/PrescriptionHistory';

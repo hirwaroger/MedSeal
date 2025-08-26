@@ -17,7 +17,7 @@ const parseMarkdown = (text) => {
     .replace(/`([^`]+)`/g, '<code style="background: #f3f4f6; padding: 2px 4px; border-radius: 4px;">$1</code>');
 };
 
-const WidgetChat = ({ userType, contextData, onClose, onExpand, showAlert }) => {
+function WidgetChat({ userType, contextData, onClose, onExpand, showAlert }) {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',

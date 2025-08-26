@@ -43,19 +43,16 @@ export function usePrescription(user, showAlert) {
         await loadPrescriptions();
         
         const prescriptionCode = result.Ok;
-        return {
-          success: true,
-          prescriptionCode,
-          patientName: prescriptionData.patient_name
-        };
+        showAlert('success', `Prescription created successfully! Share this code with your patient: ${prescriptionCode}`);
+        return true;
       } else {
         showAlert('error', 'Error: ' + result.Err);
-        return { success: false };
+        return false;
       }
     } catch (error) {
       console.error('Error creating prescription:', error);
       showAlert('error', 'Error creating prescription: ' + error.message);
-      return { success: false };
+      return false;
     } finally {
       setLoading(false);
     }

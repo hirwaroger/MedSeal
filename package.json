@@ -24,6 +24,8 @@
     "tailwindcss": "^4.1.12"
   },
   "dependencies": {
-    "childprocess": "^2.0.2"
+    "@dfinity/principal": "^3.2.2",
+    "childprocess": "^2.0.2",
+    "scheduler": "^0.26.0"
   }
 }

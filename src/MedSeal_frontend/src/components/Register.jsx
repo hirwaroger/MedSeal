@@ -5,7 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { sessionUtils } from '../utils/session';
 
 function Register({ showAlert }) {
-  const { isConnected, accounts, identityUser, user_principal, register, loading, user } = useAuth();
+  const { isConnected, accounts, identityUser, user_principal, register, loading, user, authenticatedActor, userIndexLoaded, findUserByPrincipal } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -16,6 +16,8 @@ function Register({ showAlert }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [connectionProcessing, setConnectionProcessing] = useState(false);
   const [formVisible, setFormVisible] = useState(false);
+  const [registrationStatus, setRegistrationStatus] = useState('idle'); // 'idle', 'checking', 'exists', 'registering', 'success', 'failed'
+  const [registrationError, setRegistrationError] = useState(null);
 
   // Enhanced debug logging for entire registration process
   console.log("LOG: Register component render - State:", { 
@@ -54,11 +56,11 @@ function Register({ showAlert }) {
         }, 800); // slightly shorter delay, UI-friendly
       }
     }
-  }, [isConnected, accounts, formVisible, user_principal, identityUser]);
+  }, [isConnected, formVisible, user_principal]); // Remove accounts and identityUser from dependencies as they're not used in the effect logic
 
   // Check if user already exists for this wallet
   useEffect(() => {
-    if (isConnected && user) {
+    if (isConnected && user && !connectionProcessing) {
       console.log('LOG: User already exists for this wallet, redirecting to dashboard');
       console.log('LOG: User data:', user);
       showAlert('info', 'You already have an account. Redirecting to dashboard...');
@@ -73,15 +75,45 @@ function Register({ showAlert }) {
         window.location.href = redirectPath;
       }, 1500);
     }
-  }, [isConnected, user, showAlert]);
+  }, [isConnected, user, showAlert, connectionProcessing]);
+
+  // Add effect to check if wallet already has an account using frontend index
+  useEffect(() => {
+    const preCheck = async () => {
+      if (isConnected && user_principal && userIndexLoaded && registrationStatus === 'idle') {
+        const existing = await findUserByPrincipal(user_principal);
+        if (existing) {
+          console.log('LOG: Frontend index detected existing account, redirecting to login');
+          setRegistrationStatus('exists');
+          showAlert('info', 'This wallet already has an account. Redirecting to login...');
+          setTimeout(() => window.location.href = '/login', 1500);
+        }
+      }
+    };
+    preCheck();
+  }, [isConnected, user_principal, userIndexLoaded, registrationStatus, findUserByPrincipal, showAlert]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     console.log(`LOG: Form field changed - ${name}: ${value}`);
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    setFormData(prev => {
+      const updated = {
+        ...prev,
+        [name]: value
+      };
+      
+      // Auto-set license number based on role
+      if (name === 'role') {
+        if (value === 'Patient') {
+          updated.license_number = 'Not Needed';
+        } else if (value === 'Doctor') {
+          updated.license_number = ''; // Clear it for doctor to enter manually
+        }
+      }
+      
+      return updated;
+    });
     
     if (errors[name]) {
       setErrors(prev => ({
@@ -128,6 +160,7 @@ function Register({ showAlert }) {
     return Object.keys(newErrors).length === 0;
   };
 
+  // Modify handleSubmit to update registration status
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log("LOG: Registration form submitted");
@@ -140,14 +173,15 @@ function Register({ showAlert }) {
     
     try {
       setIsSubmitting(true);
+      setRegistrationStatus('registering');
       console.log('LOG: Starting registration process with data:', formData);
-      console.log('LOG: Connected wallet principal:', user_principal || accounts?.[0]);
       
       const result = await register(formData);
       console.log('LOG: Registration result:', result);
       
       if (result.success) {
         console.log('LOG: Registration successful!');
+        setRegistrationStatus('success');
         showAlert('success', result.message);
         
         // Save session after successful registration
@@ -182,20 +216,23 @@ function Register({ showAlert }) {
         }
       } else {
         console.error('LOG: Registration failed:', result.message);
+        setRegistrationStatus('failed');
+        setRegistrationError(result.message);
         
-        // Show specific error handling for authentication issues
-        if (result.message.includes('Authentication error') || result.message.includes('Principal mismatch')) {
-          showAlert('error', result.message + ' You may need to disconnect and reconnect your wallet.');
-          // Optionally provide a disconnect/reconnect button
+        // Handle redirect case
+        if (result.shouldRedirect === 'login') {
+          showAlert('info', result.message);
           setTimeout(() => {
-            showAlert('info', 'Try disconnecting your wallet and connecting again if the issue persists.');
-          }, 3000);
+            window.location.href = '/login';
+          }, 2000);
         } else {
           showAlert('error', result.message || 'Registration failed');
         }
       }
     } catch (error) {
       console.error('LOG: Registration error:', error);
+      setRegistrationStatus('failed');
+      setRegistrationError(error.message);
       showAlert('error', 'An unexpected error occurred during registration');
     } finally {
       setIsSubmitting(false);
@@ -446,6 +483,21 @@ function Register({ showAlert }) {
                               disabled={loading}
                             />
                             {errors.license_number && <p className="mt-1 text-xs text-red-600">{errors.license_number}</p>}
+                          </div>
+                        )}
+
+                        {formData.role === 'Patient' && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">License Number</label>
+                            <input
+                              type="text"
+                              name="license_number"
+                              value="Not Needed"
+                              className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 text-gray-500"
+                              disabled
+                              readOnly
+                            />
+                            <p className="mt-1 text-xs text-gray-500">Patients do not require a license number</p>
                           </div>
                         )}
                       </div>

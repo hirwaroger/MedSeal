@@ -148,7 +148,8 @@ thread_local! {
 #[ic_cdk::update]
 fn register_user(request: RegisterUserRequest) -> Result<User> {
     let user_id = generate_user_id();
-    let caller_principal = ic_cdk::caller().to_string();
+    // Changed to normalize the caller principal
+    let caller_principal = ic_cdk::caller().to_string().trim().to_lowercase();
     
     // Check if email already exists
     let email_exists = USER_EMAILS.with(|emails| {
@@ -161,18 +162,24 @@ fn register_user(request: RegisterUserRequest) -> Result<User> {
     
     // Validate doctor license number - check if role is Doctor and license_number is provided
     if matches!(request.role, UserRole::Doctor) {
-        if request.license_number.trim().is_empty() {
+        if request.license_number.trim().is_empty() || request.license_number == "Not Needed" {
             return Err("License number is required for doctors".to_string());
         }
     }
+    // For patients, ensure license_number is set to "Not Needed"
+    let final_license_number = if matches!(request.role, UserRole::Patient) {
+        "Not Needed".to_string()
+    } else {
+        request.license_number
+    };
     
     let user = User {
         id: user_id.clone(),
         name: request.name,
         email: request.email.clone(),
         role: request.role,
-        license_number: request.license_number,
-        user_principal: caller_principal.clone(), // set user_principal
+        license_number: final_license_number,
+        user_principal: caller_principal.clone(),
         created_at: time(),
     };
     
@@ -197,10 +204,11 @@ fn register_user(request: RegisterUserRequest) -> Result<User> {
 #[ic_cdk::update]
 fn register_user_with_principal(request: RegisterUserWithPrincipalRequest) -> Result<User> {
     let user_id = generate_user_id();
-    let caller_principal = ic_cdk::caller().to_string();
+    // Normalize the caller principal
+    let caller_principal = ic_cdk::caller().to_string().trim().to_lowercase();
     
     // Verify the caller matches the provided principal
-    if caller_principal != request.user_principal {
+    if caller_principal != request.user_principal.trim().to_lowercase() {
         return Err("Principal mismatch".to_string());
     }
     
@@ -224,18 +232,24 @@ fn register_user_with_principal(request: RegisterUserWithPrincipalRequest) -> Re
     
     // Validate doctor license number - check if role is Doctor and license_number is provided
     if matches!(request.role, UserRole::Doctor) {
-        if request.license_number.trim().is_empty() {
+        if request.license_number.trim().is_empty() || request.license_number == "Not Needed" {
             return Err("License number is required for doctors".to_string());
         }
     }
+    // For patients, ensure license_number is set to "Not Needed"
+    let final_license_number = if matches!(request.role, UserRole::Patient) {
+        "Not Needed".to_string()
+    } else {
+        request.license_number
+    };
     
     let user = User {
         id: user_id.clone(),
         name: request.name,
         email: request.email.clone(),
         role: request.role,
-        license_number: request.license_number,
-        user_principal: request.user_principal.clone(), // set user_principal
+        license_number: final_license_number,
+        user_principal: request.user_principal.clone(),
         created_at: time(),
     };
     
@@ -267,7 +281,11 @@ fn register_user_with_principal(request: RegisterUserWithPrincipalRequest) -> Re
 #[ic_cdk::update]
 fn register_user_simple(name: String, email: String, role: UserRole, license_number: String) -> Result<User> {
     let user_id = generate_user_id();
-    let caller_principal = ic_cdk::caller().to_string();
+    // Normalize the caller principal
+    let caller_principal = ic_cdk::caller().to_string().trim().to_lowercase();
+    
+    ic_cdk::println!("Registration attempt - Principal: {}, Email: {}, Role: {:?}", 
+                     caller_principal, email, role);
     
     // Check if email already exists
     let email_exists = USER_EMAILS.with(|emails| {
@@ -275,32 +293,55 @@ fn register_user_simple(name: String, email: String, role: UserRole, license_num
     });
     
     if email_exists {
+        ic_cdk::println!("Registration failed - Email already exists: {}", email);
         return Err("Email already registered".to_string());
     }
     
     // Check if principal already has an account
     let principal_exists = PRINCIPAL_TO_USER.with(|mapping| {
-        mapping.borrow().contains_key(&caller_principal)
+        let exists = mapping.borrow().contains_key(&caller_principal);
+        if exists {
+            if let Some(existing_user_id) = mapping.borrow().get(&caller_principal) {
+                ic_cdk::println!("Principal {} already mapped to user_id: {}", 
+                                caller_principal, existing_user_id);
+                
+                // Get user details for debugging
+                USERS.with(|users| {
+                    if let Some(existing_user) = users.borrow().get(existing_user_id) {
+                        ic_cdk::println!("Existing user details - Name: {}, Email: {}, Role: {:?}", 
+                                        existing_user.name, existing_user.email, existing_user.role);
+                    }
+                });
+            }
+        }
+        exists
     });
     
     if principal_exists {
+        ic_cdk::println!("Registration failed - Principal already has account: {}", caller_principal);
         return Err("Wallet already has an account".to_string());
     }
     
     // Validate doctor license number
     if matches!(role, UserRole::Doctor) {
-        if license_number.trim().is_empty() {
+        if license_number.trim().is_empty() || license_number == "Not Needed" {
             return Err("License number is required for doctors".to_string());
         }
     }
+    // For patients, ensure license_number is set to "Not Needed"
+    let final_license_number = if matches!(role, UserRole::Patient) {
+        "Not Needed".to_string()
+    } else {
+        license_number
+    };
     
     let user = User {
         id: user_id.clone(),
         name: name.clone(),
         email: email.clone(),
         role: role.clone(),
-        license_number: license_number.clone(),
-        user_principal: caller_principal.clone(), // set user_principal
+        license_number: final_license_number,
+        user_principal: caller_principal.clone(),
         created_at: time(),
     };
     
@@ -323,7 +364,8 @@ fn register_user_simple(name: String, email: String, role: UserRole, license_num
         mapping.borrow_mut().insert(user_id.clone(), caller_principal.clone());
     });
     
-    ic_cdk::println!("Registered user {} with principal {} and user_id {}", name, caller_principal, user_id);
+    ic_cdk::println!("Successfully registered user {} with principal {} and user_id {}", 
+                     name, caller_principal, user_id);
     
     Ok(user)
 }
@@ -337,33 +379,149 @@ fn get_user(user_id: String) -> Option<User> {
 
 #[ic_cdk::query]
 fn get_user_by_principal(user_principal: String) -> Result<User> {
-    ic_cdk::println!("Getting user by principal: {}", user_principal);
+    let normalized = user_principal.trim().to_lowercase();
+    ic_cdk::println!("=== USER LOOKUP DEBUG START ===");
+    ic_cdk::println!("Looking for user with principal: '{}'", normalized);
+    ic_cdk::println!("Principal length: {}", normalized.len());
     
+    // First check if principal exists in mapping
     let user_id = PRINCIPAL_TO_USER.with(|mapping| {
-        mapping.borrow().get(&user_principal).cloned()
+        let mappings = mapping.borrow();
+        ic_cdk::println!("Total principal mappings in storage: {}", mappings.len());
+        
+        // Debug all mappings
+        for (stored_principal, stored_user_id) in mappings.iter() {
+            ic_cdk::println!("Mapping: '{}' -> '{}'", stored_principal, stored_user_id);
+            if stored_principal == &normalized {
+                ic_cdk::println!("*** EXACT MATCH FOUND! ***");
+            }
+        }
+        
+        mappings.get(&normalized).cloned()
     });
     
     match user_id {
         Some(id) => {
+            ic_cdk::println!("SUCCESS: Found user_id '{}' for principal '{}'", id, normalized);
             USERS.with(|users| {
                 let user = users.borrow().get(&id).cloned();
                 match user {
                     Some(u) => {
-                        ic_cdk::println!("Found user: {}", u.name);
+                        ic_cdk::println!("SUCCESS: Retrieved user data - Name: '{}', Email: '{}', Role: {:?}", 
+                                       u.name, u.email, u.role);
+                        ic_cdk::println!("=== USER LOOKUP DEBUG END (SUCCESS) ===");
                         Ok(u)
                     },
                     None => {
-                        ic_cdk::println!("User not found in USERS map for id: {}", id);
-                        Err("User not found".to_string())
+                        ic_cdk::println!("ERROR: User ID '{}' exists in mapping but not in USERS storage!", id);
+                        ic_cdk::println!("=== USER LOOKUP DEBUG END (ERROR) ===");
+                        Err("User data corrupted".to_string())
                     }
                 }
             })
         },
         None => {
-            ic_cdk::println!("Principal not found in mapping");
+            ic_cdk::println!("FAILURE: Principal '{}' not found in mapping", normalized);
+            ic_cdk::println!("=== USER LOOKUP DEBUG END (NOT FOUND) ===");
             Err("User not found".to_string())
         }
     }
+}
+
+// Add a function to check if principal exists (for registration)
+#[ic_cdk::query]
+fn principal_has_account(user_principal: String) -> bool {
+    PRINCIPAL_TO_USER.with(|mapping| {
+        let exists = mapping.borrow().contains_key(&user_principal);
+        ic_cdk::println!("Principal '{}' has account: {}", user_principal, exists);
+        exists
+    })
+}
+
+// Add a more robust user retrieval method
+#[ic_cdk::query]
+fn get_user_by_principal_detailed(user_principal: String) -> Result<User> {
+    let normalized = user_principal.trim().to_lowercase();
+    ic_cdk::println!("=== DETAILED USER LOOKUP START ===");
+    ic_cdk::println!("Searching for principal: '{}'", normalized);
+    
+    // Step 1: Check direct principal mapping
+    let user_id_from_mapping = PRINCIPAL_TO_USER.with(|mapping| {
+        mapping.borrow().get(&normalized).cloned()
+    });
+    
+    if let Some(user_id) = user_id_from_mapping {
+        ic_cdk::println!("Found user_id from mapping: '{}'", user_id);
+        
+        // Step 2: Get user data
+        let user = USERS.with(|users| {
+            users.borrow().get(&user_id).cloned()
+        });
+        
+        if let Some(u) = user {
+            ic_cdk::println!("Successfully retrieved user: '{}'", u.name);
+            ic_cdk::println!("=== DETAILED USER LOOKUP END (SUCCESS) ===");
+            return Ok(u);
+        } else {
+            ic_cdk::println!("ERROR: User ID exists in mapping but user data not found!");
+        }
+    }
+    
+    // Step 3: Fallback - search through all users by user_principal field
+    ic_cdk::println!("Fallback: Searching through all users...");
+    let fallback_user = USERS.with(|users| {
+        let users_map = users.borrow();
+        for (user_id, user) in users_map.iter() {
+            if user.user_principal == normalized {
+                ic_cdk::println!("Found user through fallback search: '{}' (ID: '{}')", user.name, user_id);
+                
+                // Fix the mapping
+                PRINCIPAL_TO_USER.with(|mapping| {
+                    mapping.borrow_mut().insert(normalized.clone(), user_id.clone());
+                });
+                ic_cdk::println!("Fixed principal mapping for user: '{}'", user.name);
+                
+                return Some(user.clone());
+            }
+        }
+        None
+    });
+    
+    match fallback_user {
+        Some(u) => {
+            ic_cdk::println!("=== DETAILED USER LOOKUP END (FALLBACK SUCCESS) ===");
+            Ok(u)
+        },
+        None => {
+            ic_cdk::println!("=== DETAILED USER LOOKUP END (NOT FOUND) ===");
+            Err("User not found".to_string())
+        }
+    }
+}
+
+// Add function to test if backend is working
+#[ic_cdk::query]
+fn test_backend_connection() -> String {
+    ic_cdk::println!("Backend connection test called");
+    "Backend is working!".to_string()
+}
+
+// Add a debug function to check all mappings
+#[ic_cdk::query]
+fn debug_all_users() -> Vec<(String, String, String)> {
+    let mut result = Vec::new();
+    
+    USERS.with(|users| {
+        let users_map = users.borrow();
+        for (user_id, user) in users_map.iter() {
+            let principal = USER_PRINCIPALS.with(|principals| {
+                principals.borrow().get(user_id).cloned().unwrap_or_default()
+            });
+            result.push((user_id.clone(), user.name.clone(), principal));
+        }
+    });
+    
+    result
 }
 
 #[ic_cdk::query]
@@ -386,7 +544,7 @@ fn authenticate_user(email: String, _password: String) -> Result<User> {
                 match user {
                     Some(u) => {
                         // Also ensure the principal mapping exists for future operations
-                        let caller_principal = ic_cdk::caller().to_string();
+                        let caller_principal = ic_cdk::caller().to_string().trim().to_lowercase();
                         PRINCIPAL_TO_USER.with(|mapping| {
                             mapping.borrow_mut().insert(caller_principal.clone(), id.clone());
                         });
@@ -762,6 +920,17 @@ fn get_doctor_prescriptions(doctor_id: String) -> Vec<Prescription> {
         
         ic_cdk::println!("Found {} prescriptions for doctor {}", filtered_prescriptions.len(), doctor_id);
         filtered_prescriptions
+    })
+}
+
+// Add lightweight list for frontend-side principal lookup: (principal, user_id, email)
+#[ic_cdk::query]
+fn list_user_principals() -> Vec<(String, String, String)> {
+    USERS.with(|users| {
+        users.borrow()
+            .values()
+            .map(|u| (u.user_principal.clone(), u.id.clone(), u.email.clone()))
+            .collect()
     })
 }
 
