@@ -73,13 +73,21 @@ const normalizeUser = (user) => {
     return user;
   }
   
-  const normalized = convertBigIntToNumber(user);
+  // Handle case where user might be wrapped in an array
+  let actualUser = user;
+  if (Array.isArray(user) && user.length > 0) {
+    console.log('LOG: User is an array, taking first element');
+    actualUser = user[0];
+  }
+  
+  const normalized = convertBigIntToNumber(actualUser);
   
   // Ensure role is properly normalized with extra logging
   console.log('LOG: User before role normalization:', {
     name: normalized.name,
     role: normalized.role,
-    roleType: typeof normalized.role
+    roleType: typeof normalized.role,
+    hasRole: normalized.role !== undefined && normalized.role !== null
   });
   
   if (normalized.role !== undefined && normalized.role !== null) {
@@ -94,7 +102,8 @@ const normalizeUser = (user) => {
   console.log('LOG: User after normalization:', {
     name: normalized.name,
     role: normalized.role,
-    email: normalized.email
+    email: normalized.email,
+    id: normalized.id
   });
   
   return normalized;

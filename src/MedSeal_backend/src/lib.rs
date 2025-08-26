@@ -372,8 +372,11 @@ fn register_user_simple(name: String, email: String, role: UserRole, license_num
 
 #[ic_cdk::query]
 fn get_user(user_id: String) -> Option<User> {
+    ic_cdk::println!("Getting user with ID: {}", user_id);
     USERS.with(|users| {
-        users.borrow().get(&user_id).cloned()
+        let user = users.borrow().get(&user_id).cloned();
+        ic_cdk::println!("Found user: {:?}", user);
+        user
     })
 }
 

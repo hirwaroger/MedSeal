@@ -170,7 +170,12 @@ function DoctorDashboard({ user, showAlert }) {
       
       {activeTab === 'add-medicine' && (
         <AddMedicineForm 
-          onSubmit={addMedicine}
+          onSubmit={async (medicineData) => {
+            console.log('LOG: DoctorDashboard - addMedicine called with:', medicineData);
+            const result = await addMedicine(medicineData);
+            console.log('LOG: DoctorDashboard - addMedicine result:', result);
+            return result;
+          }}
           onTabChange={setActiveTab}
           loading={medicineLoading}
           showAlert={showAlert}

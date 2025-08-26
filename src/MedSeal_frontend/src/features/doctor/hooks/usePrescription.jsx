@@ -1,25 +1,46 @@
 import { useState, useEffect } from 'react';
-import { MedSeal_backend } from 'declarations/MedSeal_backend';
+import { useAuth } from '../../../hooks/useAuth';
 
 export function usePrescription(user, showAlert) {
   const [prescriptions, setPrescriptions] = useState([]);
   const [selectedMedicines, setSelectedMedicines] = useState([]);
   const [loading, setLoading] = useState(false);
+  const { authenticatedActor } = useAuth();
 
   useEffect(() => {
-    loadPrescriptions();
-  }, [user]);
+    if (user && authenticatedActor) {
+      loadPrescriptions();
+    }
+  }, [user, authenticatedActor]);
 
   const loadPrescriptions = async () => {
+    if (!authenticatedActor || !user) {
+      console.log('LOG: Cannot load prescriptions - missing actor or user');
+      return;
+    }
+
     try {
-      const result = await MedSeal_backend.get_doctor_prescriptions(user.id);
-      setPrescriptions(result || []);
+      setLoading(true);
+      console.log('LOG: Loading prescriptions for user:', user.id);
+      
+      const result = await authenticatedActor.get_doctor_prescriptions(user.id);
+      console.log('LOG: Loaded prescriptions result:', result);
+      
+      setPrescriptions(Array.isArray(result) ? result : []);
     } catch (error) {
-      console.error('Error loading prescriptions:', error);
+      console.error('LOG: Error loading prescriptions:', error);
+      showAlert('error', 'Error loading prescriptions: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   const createPrescription = async (prescriptionData) => {
+    if (!authenticatedActor) {
+      showAlert('error', 'Backend connection not available');
+      return false;
+    }
+
     if (selectedMedicines.length === 0) {
       showAlert('warning', 'Please select at least one medicine');
       return false;
@@ -27,6 +48,9 @@ export function usePrescription(user, showAlert) {
 
     setLoading(true);
     try {
+      console.log('LOG: Creating prescription with data:', prescriptionData);
+      console.log('LOG: Selected medicines:', selectedMedicines);
+      
       const dataWithMedicines = {
         ...prescriptionData,
         medicines: selectedMedicines.map(med => ({
@@ -36,7 +60,10 @@ export function usePrescription(user, showAlert) {
         }))
       };
       
-      const result = await MedSeal_backend.create_prescription(dataWithMedicines);
+      console.log('LOG: Final prescription data:', dataWithMedicines);
+      
+      const result = await authenticatedActor.create_prescription(dataWithMedicines);
+      console.log('LOG: Create prescription result:', result);
       
       if ('Ok' in result) {
         setSelectedMedicines([]);
@@ -46,11 +73,12 @@ export function usePrescription(user, showAlert) {
         showAlert('success', `Prescription created successfully! Share this code with your patient: ${prescriptionCode}`);
         return true;
       } else {
+        console.error('LOG: Failed to create prescription:', result.Err);
         showAlert('error', 'Error: ' + result.Err);
         return false;
       }
     } catch (error) {
-      console.error('Error creating prescription:', error);
+      console.error('LOG: Error creating prescription:', error);
       showAlert('error', 'Error creating prescription: ' + error.message);
       return false;
     } finally {

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MedSeal_backend } from 'declarations/MedSeal_backend';
+import { useAuth } from '../hooks/useAuth';
 
 // Simple markdown parser for AI responses
 const parseMarkdown = (text) => {
@@ -25,6 +25,7 @@ function AIChat({ userType, contextData, onClose, title, initialMode = 'general'
   const [showContextPanel, setShowContextPanel] = useState(true);
   const chatBoxRef = useRef(null);
   const inputRef = useRef(null);
+  const { authenticatedActor } = useAuth();
 
   useEffect(() => {
     if (chatBoxRef.current) {
@@ -102,6 +103,14 @@ I can recommend appropriate medicines from your repository and suggest dosages, 
     e.preventDefault();
     if (!inputValue.trim() || isLoading) return;
 
+    if (!authenticatedActor) {
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'Backend connection not available. Please refresh the page and try again.'
+      }]);
+      return;
+    }
+
     const userMessage = {
       role: 'user',
       content: inputValue.trim()
@@ -132,27 +141,27 @@ I can recommend appropriate medicines from your repository and suggest dosages, 
             prescription_data: contextData.prescription
           };
           console.log('Calling chat_prescription with context:', context);
-          result = await MedSeal_backend.chat_prescription(chatMessages, context);
+          result = await authenticatedActor.chat_prescription(chatMessages, context);
         } else if (userType === 'doctor' && contextData?.medicines) {
           const context = {
             user_type: userType,
             medicine_data: contextData.medicines
           };
           console.log('Calling chat_medicine with context:', context);
-          result = await MedSeal_backend.chat_medicine(chatMessages, context);
+          result = await authenticatedActor.chat_medicine(chatMessages, context);
         } else {
           const context = {
             user_type: userType
           };
           console.log('Calling chat_general (fallback) with context:', context);
-          result = await MedSeal_backend.chat_general(chatMessages, context);
+          result = await authenticatedActor.chat_general(chatMessages, context);
         }
       } else {
         const context = {
           user_type: userType
         };
         console.log('Calling chat_general with context:', context);
-        result = await MedSeal_backend.chat_general(chatMessages, context);
+        result = await authenticatedActor.chat_general(chatMessages, context);
       }
       
       console.log('AI response received:', result);

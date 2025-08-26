@@ -16,6 +16,9 @@ function AddMedicineForm({ onSubmit, onTabChange, loading, showAlert }) {
     extraction_progress: ''
   });
 
+  const [formErrors, setFormErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleFileUpload = async (file) => {
     if (!file) return;
     
@@ -59,32 +62,122 @@ function AddMedicineForm({ onSubmit, onTabChange, loading, showAlert }) {
     }
   };
 
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!medicineForm.name.trim()) {
+      errors.name = 'Medicine name is required';
+    }
+    
+    if (!medicineForm.dosage.trim()) {
+      errors.dosage = 'Dosage is required';
+    }
+    
+    if (!medicineForm.frequency.trim()) {
+      errors.frequency = 'Frequency is required';
+    }
+    
+    if (!medicineForm.duration.trim()) {
+      errors.duration = 'Duration is required';
+    }
+    
+    if (!medicineForm.side_effects.trim()) {
+      errors.side_effects = 'Side effects information is required';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleInputChange = (field, value) => {
+    setMedicineForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    
+    // Clear error for this field when user starts typing
+    if (formErrors[field]) {
+      setFormErrors(prev => ({
+        ...prev,
+        [field]: null
+      }));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const medicineData = {
-      name: medicineForm.name,
-      dosage: medicineForm.dosage,
-      frequency: medicineForm.frequency,
-      duration: medicineForm.duration,
-      side_effects: medicineForm.side_effects,
-      guide_text: medicineForm.guide_text || "No guide available",
-      guide_source: medicineForm.guide_file ? medicineForm.guide_file.name : "Manual entry"
-    };
+    console.log('LOG: Form submission started');
+    console.log('LOG: Current form data:', medicineForm);
+    console.log('LOG: onSubmit function available:', typeof onSubmit === 'function');
     
-    const success = await onSubmit(medicineData);
-    if (success) {
-      setMedicineForm({
-        name: '',
-        dosage: '',
-        frequency: '',
-        duration: '',
-        side_effects: '',
-        guide_file: null,
-        guide_text: '',
-        extracting: false,
-        extraction_progress: ''
-      });
-      onTabChange('medicines');
+    if (typeof onSubmit !== 'function') {
+      console.error('LOG: onSubmit is not a function!', onSubmit);
+      showAlert('error', 'Form submission error: onSubmit function not available');
+      return;
+    }
+    
+    if (!validateForm()) {
+      console.log('LOG: Form validation failed:', formErrors);
+      showAlert('error', 'Please fill in all required fields');
+      return;
+    }
+    
+    if (medicineForm.extracting) {
+      showAlert('warning', 'Please wait for PDF extraction to complete');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      const medicineData = {
+        name: medicineForm.name.trim(),
+        dosage: medicineForm.dosage.trim(),
+        frequency: medicineForm.frequency.trim(),
+        duration: medicineForm.duration.trim(),
+        side_effects: medicineForm.side_effects.trim(),
+        guide_text: medicineForm.guide_text.trim() || "No guide available",
+        guide_source: medicineForm.guide_file ? medicineForm.guide_file.name : "Manual entry"
+      };
+      
+      console.log('LOG: Submitting medicine data:', medicineData);
+      console.log('LOG: Calling onSubmit with data...');
+      
+      const success = await onSubmit(medicineData);
+      console.log('LOG: Submission result:', success);
+      
+      if (success) {
+        console.log('LOG: Medicine added successfully, clearing form');
+        setMedicineForm({
+          name: '',
+          dosage: '',
+          frequency: '',
+          duration: '',
+          side_effects: '',
+          guide_file: null,
+          guide_text: '',
+          extracting: false,
+          extraction_progress: ''
+        });
+        setFormErrors({});
+        showAlert('success', 'Medicine added successfully!');
+        
+        // Check if onTabChange is available and call it
+        if (typeof onTabChange === 'function') {
+          console.log('LOG: Calling onTabChange to switch to medicines tab');
+          onTabChange('medicines');
+        } else {
+          console.warn('LOG: onTabChange function not available');
+        }
+      } else {
+        console.error('LOG: Medicine submission failed');
+        showAlert('error', 'Failed to add medicine. Please try again.');
+      }
+    } catch (error) {
+      console.error('LOG: Form submission error:', error);
+      showAlert('error', 'Failed to add medicine: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -123,74 +216,98 @@ function AddMedicineForm({ onSubmit, onTabChange, loading, showAlert }) {
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Medicine Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Medicine Name <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    formErrors.name ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
+                  }`}
                   value={medicineForm.name}
-                  onChange={(e) => setMedicineForm({...medicineForm, name: e.target.value})}
-                  required
+                  onChange={(e) => handleInputChange('name', e.target.value)}
+                  placeholder="Enter medicine name"
+                  disabled={loading || isSubmitting}
                 />
-                {!medicineForm.name.trim() && (
-                  <p className="text-red-500 text-sm mt-1">Medicine name is required</p>
+                {formErrors.name && (
+                  <p className="text-red-500 text-sm mt-1">{formErrors.name}</p>
                 )}
               </div>
+              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Dosage</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Dosage <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    formErrors.dosage ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
+                  }`}
                   value={medicineForm.dosage}
-                  onChange={(e) => setMedicineForm({...medicineForm, dosage: e.target.value})}
+                  onChange={(e) => handleInputChange('dosage', e.target.value)}
                   placeholder="e.g., 500mg"
-                  required
+                  disabled={loading || isSubmitting}
                 />
-                {!medicineForm.dosage.trim() && (
-                  <p className="text-red-500 text-sm mt-1">Dosage is required</p>
+                {formErrors.dosage && (
+                  <p className="text-red-500 text-sm mt-1">{formErrors.dosage}</p>
                 )}
               </div>
+              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Frequency</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Frequency <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    formErrors.frequency ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
+                  }`}
                   value={medicineForm.frequency}
-                  onChange={(e) => setMedicineForm({...medicineForm, frequency: e.target.value})}
+                  onChange={(e) => handleInputChange('frequency', e.target.value)}
                   placeholder="e.g., Twice daily"
-                  required
+                  disabled={loading || isSubmitting}
                 />
-                {!medicineForm.frequency.trim() && (
-                  <p className="text-red-500 text-sm mt-1">Frequency is required</p>
+                {formErrors.frequency && (
+                  <p className="text-red-500 text-sm mt-1">{formErrors.frequency}</p>
                 )}
               </div>
+              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Duration</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Duration <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    formErrors.duration ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
+                  }`}
                   value={medicineForm.duration}
-                  onChange={(e) => setMedicineForm({...medicineForm, duration: e.target.value})}
+                  onChange={(e) => handleInputChange('duration', e.target.value)}
                   placeholder="e.g., 7 days"
-                  required
+                  disabled={loading || isSubmitting}
                 />
-                {!medicineForm.duration.trim() && (
-                  <p className="text-red-500 text-sm mt-1">Duration is required</p>
+                {formErrors.duration && (
+                  <p className="text-red-500 text-sm mt-1">{formErrors.duration}</p>
                 )}
               </div>
             </div>
             
             <div className="mt-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Side Effects</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Side Effects <span className="text-red-500">*</span>
+              </label>
               <textarea
                 rows="3"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  formErrors.side_effects ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
+                }`}
                 value={medicineForm.side_effects}
-                onChange={(e) => setMedicineForm({...medicineForm, side_effects: e.target.value})}
+                onChange={(e) => handleInputChange('side_effects', e.target.value)}
                 placeholder="List potential side effects..."
-                required
+                disabled={loading || isSubmitting}
               />
-              {!medicineForm.side_effects.trim() && (
-                <p className="text-red-500 text-sm mt-1">Side effects information is required</p>
+              {formErrors.side_effects && (
+                <p className="text-red-500 text-sm mt-1">{formErrors.side_effects}</p>
               )}
             </div>
             
@@ -212,7 +329,7 @@ function AddMedicineForm({ onSubmit, onTabChange, loading, showAlert }) {
                         accept=".pdf"
                         className="hidden"
                         onChange={(e) => handleFileUpload(e.target.files[0])}
-                        disabled={medicineForm.extracting}
+                        disabled={medicineForm.extracting || loading || isSubmitting}
                       />
                     </label>
                   </>
@@ -234,6 +351,7 @@ function AddMedicineForm({ onSubmit, onTabChange, loading, showAlert }) {
                             }));
                           }}
                           className="ml-4 text-red-600 hover:text-red-700"
+                          disabled={loading || isSubmitting}
                         >
                           ✕
                         </button>
@@ -277,7 +395,8 @@ function AddMedicineForm({ onSubmit, onTabChange, loading, showAlert }) {
                   rows="8"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
                   value={medicineForm.guide_text}
-                  onChange={(e) => setMedicineForm({...medicineForm, guide_text: e.target.value})}
+                  onChange={(e) => handleInputChange('guide_text', e.target.value)}
+                  disabled={loading || isSubmitting}
                 />
                 <p className="text-sm text-gray-500 mt-1">
                   You can edit the extracted text if needed before saving.
@@ -286,21 +405,40 @@ function AddMedicineForm({ onSubmit, onTabChange, loading, showAlert }) {
             )}
             
             <div className="flex gap-4 mt-8">
-              <Button 
+              <button
                 type="submit" 
-                loading={loading || medicineForm.extracting}
-                icon="💾"
+                disabled={loading || medicineForm.extracting || isSubmitting}
+                className={`px-6 py-3 rounded-lg font-semibold text-white transition-colors ${
+                  loading || medicineForm.extracting || isSubmitting
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                }`}
+                onClick={(e) => {
+                  console.log('LOG: Submit button clicked');
+                  console.log('LOG: Form element:', e.target.form);
+                  console.log('LOG: Button disabled state:', e.target.disabled);
+                }}
               >
-                Add Medicine
-              </Button>
-              <Button 
+                {isSubmitting ? (
+                  <>
+                    <span className="inline-block animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></span>
+                    Adding Medicine...
+                  </>
+                ) : (
+                  <>
+                    💾 Add Medicine
+                  </>
+                )}
+              </button>
+              
+              <button
                 type="button"
-                variant="outline"
                 onClick={clearForm}
-                icon="🗑️"
+                disabled={loading || medicineForm.extracting || isSubmitting}
+                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Clear Form
-              </Button>
+                🗑️ Clear Form
+              </button>
             </div>
           </form>
         </Card>

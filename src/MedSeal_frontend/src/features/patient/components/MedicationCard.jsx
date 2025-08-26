@@ -9,6 +9,43 @@ function MedicationCard({
   onToggleAccordion 
 }) {
   const med = medicine;
+  
+  console.log('LOG: MedicationCard received medicine data:', med);
+
+  // Handle case where medicine data is missing
+  if (!med || !med.medicine) {
+    console.warn('LOG: MedicationCard missing medicine data:', med);
+    return (
+      <div className="border border-gray-200 rounded-xl border-l-4 border-l-red-500">
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <span className="text-red-600">⚠️</span>
+            <h3 className="text-lg font-semibold text-red-700">
+              Medicine Data Unavailable
+            </h3>
+          </div>
+          <p className="text-red-600">
+            Medicine ID: {med?.medicine_id || 'Unknown'}
+          </p>
+          {med?.custom_instructions && (
+            <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-700">
+                Custom Instructions: {med.custom_instructions}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  console.log('LOG: MedicationCard medicine details:', {
+    name: med.medicine?.name,
+    dosage: med.medicine?.dosage,
+    customDosage: med.custom_dosage,
+    frequency: med.medicine?.frequency,
+    duration: med.medicine?.duration
+  });
 
   return (
     <div className="border border-gray-200 rounded-xl border-l-4 border-l-blue-500">

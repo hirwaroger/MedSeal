@@ -20,7 +20,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
   const [userCheckPerformed, setUserCheckPerformed] = useState(false);
-  const [userPrincipalIndex, setUserPrincipalIndex] = useState(null); // principal -> { user_id, email }
+  const [userPrincipalIndex, setUserPrincipalIndex] = useState(null);
   const [userIndexLoaded, setUserIndexLoaded] = useState(false);
   const [loadingIndex, setLoadingIndex] = useState(false);
   
@@ -106,22 +106,30 @@ export const AuthProvider = ({ children }) => {
     if (!entry) return null;
     try {
       const full = await authenticatedActor.get_user(entry.user_id);
-      if (full) {
-        console.log('LOG: Raw user from backend:', full);
-        
+      console.log('LOG: Raw user from backend:', full);
+      
+      // Handle case where backend returns an array instead of a single object
+      let userObject = full;
+      if (Array.isArray(full) && full.length > 0) {
+        console.log('LOG: Backend returned array, taking first element');
+        userObject = full[0];
+      }
+      
+      if (userObject) {
         // Validate the user object has required fields
-        if (!full.name || !full.email || (full.role === undefined || full.role === null)) {
+        if (!userObject.name || !userObject.email || (userObject.role === undefined || userObject.role === null)) {
           console.error('LOG: User object missing required fields:', {
-            hasName: !!full.name,
-            hasEmail: !!full.email,
-            hasRole: full.role !== undefined && full.role !== null,
-            role: full.role
+            hasName: !!userObject.name,
+            hasEmail: !!userObject.email,
+            hasRole: userObject.role !== undefined && userObject.role !== null,
+            role: userObject.role,
+            fullObject: userObject
           });
           return null;
         }
         
         // Use sessionUtils to normalize the user object
-        const normalizedUser = sessionUtils.normalizeUser(full);
+        const normalizedUser = sessionUtils.normalizeUser(userObject);
         console.log('LOG: User found and normalized:', normalizedUser);
         
         // Final validation after normalization
@@ -142,6 +150,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkSession = async () => {
       try {
+        setLoading(true); // Ensure loading is set to true at start
         const session = sessionUtils.loadSession();
         if (session && session.user) {
           console.log('LOG: Found existing session for user:', session.user.name);
@@ -154,14 +163,13 @@ export const AuthProvider = ({ children }) => {
           } else {
             console.log('LOG: Session user role:', session.user.role);
             setUser(session.user);
-            setUserCheckPerformed(true); // Mark as already checked to prevent loops
+            setUserCheckPerformed(true);
           }
         } else {
           console.log('LOG: No valid session found');
         }
       } catch (error) {
         console.error('LOG: Error checking session:', error);
-        // Clear potentially corrupted session
         sessionUtils.clearSession();
       } finally {
         setLoading(false);
@@ -169,9 +177,11 @@ export const AuthProvider = ({ children }) => {
       }
     };
     
-    // Wait for IdentityKit to initialize
     if (!isInitializing) {
       checkSession();
+    } else {
+      // If still initializing, ensure loading is true
+      setLoading(true);
     }
   }, [isInitializing]);
 
@@ -448,7 +458,7 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
-    loading: (loading || isInitializing || isUserConnecting || loadingIndex),
+    loading: Boolean(loading || isInitializing || isUserConnecting || loadingIndex), // Ensure boolean value
     isConnected,
     accounts: normalizedAccounts,
     identityUser,
