@@ -1,18 +1,12 @@
 import { useState } from 'react';
-import { useAuth } from '../../../hooks/useAuth';
+import { usePrescription } from '../hooks/usePrescription';
 
 function PrescriptionAccess({ onPrescriptionLoad, showAlert }) {
-  const [loading, setLoading] = useState(false);
   const [prescriptionCode, setPrescriptionCode] = useState('');
-  const { authenticatedActor } = useAuth();
+  const { fetchPrescription, loading } = usePrescription(showAlert);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!authenticatedActor) {
-      showAlert('error', 'Backend connection not available');
-      return;
-    }
     
     if (!prescriptionCode.trim()) {
       showAlert('error', 'Please enter a prescription code');
@@ -26,99 +20,11 @@ function PrescriptionAccess({ onPrescriptionLoad, showAlert }) {
     }
 
     const [prescriptionId, code] = parts;
-    setLoading(true);
-
-    try {
-      console.log('LOG: Fetching prescription with ID:', prescriptionId, 'Code:', code);
-      
-      const result = await authenticatedActor.get_prescription(prescriptionId, code);
-      console.log('LOG: Prescription fetch result:', result);
-      
-      if ('Ok' in result) {
-        const prescriptionData = result.Ok;
-        console.log('LOG: Prescription loaded successfully:', prescriptionData);
-        
-        // Get medicine details for each medicine in the prescription
-        const medicineDetails = await Promise.all(
-          prescriptionData.medicines.map(async (prescriptionMedicine) => {
-            try {
-              const medicineResult = await authenticatedActor.get_medicine(prescriptionMedicine.medicine_id);
-              console.log('LOG: Fetched medicine:', medicineResult, 'for ID:', prescriptionMedicine.medicine_id);
-              
-              // Handle case where backend returns an array or single object
-              let medicine = null;
-              if (Array.isArray(medicineResult) && medicineResult.length > 0) {
-                medicine = medicineResult[0];
-                console.log('LOG: Extracted medicine from array:', medicine);
-              } else if (medicineResult && !Array.isArray(medicineResult)) {
-                medicine = medicineResult;
-                console.log('LOG: Using medicine object directly:', medicine);
-              }
-              
-              if (medicine) {
-                // Structure the data to match what MedicationCard expects
-                return {
-                  medicine_id: prescriptionMedicine.medicine_id,
-                  custom_dosage: prescriptionMedicine.custom_dosage && prescriptionMedicine.custom_dosage.length > 0 
-                    ? prescriptionMedicine.custom_dosage[0] 
-                    : null,
-                  custom_instructions: prescriptionMedicine.custom_instructions || '',
-                  medicine: {
-                    id: medicine.id,
-                    name: medicine.name,
-                    dosage: medicine.dosage,
-                    frequency: medicine.frequency,
-                    duration: medicine.duration,
-                    side_effects: medicine.side_effects,
-                    guide_text: medicine.guide_text,
-                    is_active: medicine.is_active,
-                    created_at: medicine.created_at
-                  }
-                };
-              } else {
-                console.warn('LOG: Medicine not found for ID:', prescriptionMedicine.medicine_id);
-                return {
-                  medicine_id: prescriptionMedicine.medicine_id,
-                  custom_dosage: prescriptionMedicine.custom_dosage && prescriptionMedicine.custom_dosage.length > 0 
-                    ? prescriptionMedicine.custom_dosage[0] 
-                    : null,
-                  custom_instructions: prescriptionMedicine.custom_instructions || '',
-                  medicine: null
-                };
-              }
-            } catch (error) {
-              console.error('LOG: Error fetching medicine for ID:', prescriptionMedicine.medicine_id, error);
-              return {
-                medicine_id: prescriptionMedicine.medicine_id,
-                custom_dosage: prescriptionMedicine.custom_dosage && prescriptionMedicine.custom_dosage.length > 0 
-                  ? prescriptionMedicine.custom_dosage[0] 
-                  : null,
-                custom_instructions: prescriptionMedicine.custom_instructions || '',
-                medicine: null
-              };
-            }
-          })
-        );
-        
-        console.log('LOG: All medicine details:', medicineDetails);
-        
-        const prescription = {
-          ...prescriptionData,
-          medicineDetails: medicineDetails
-        };
-        
-        onPrescriptionLoad(prescription);
-        showAlert('success', 'Prescription loaded successfully!');
-        setPrescriptionCode('');
-      } else {
-        console.error('LOG: Failed to fetch prescription:', result.Err);
-        showAlert('error', 'Error: ' + result.Err);
-      }
-    } catch (error) {
-      console.error('LOG: Error fetching prescription:', error);
-      showAlert('error', 'Error fetching prescription: ' + error.message);
-    } finally {
-      setLoading(false);
+    
+    const success = await fetchPrescription(prescriptionId, code);
+    if (success) {
+      onPrescriptionLoad(true);
+      setPrescriptionCode('');
     }
   };
 

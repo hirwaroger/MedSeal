@@ -10,7 +10,6 @@ import AIChat from './AIChat';
 
 function PatientDashboard({ user, showAlert }) {
   const [activeTab, setActiveTab] = useState('access');
-  const [prescription, setPrescription] = useState(null);
   const [messages, setMessages] = useState([]);
   const [currentMessage, setCurrentMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -19,18 +18,22 @@ function PatientDashboard({ user, showAlert }) {
   const [selectedPrescription, setSelectedPrescription] = useState(null);
   const [showDoctorVideo, setShowDoctorVideo] = useState(false);
   const [currentVideoMessage, setCurrentVideoMessage] = useState(null);
-  const [currentPrescription, setCurrentPrescription] = useState(null);
-  const [medicines, setMedicines] = useState([]);
-  const [prescriptionHistory, setPrescriptionHistory] = useState([]);
   const [expandedAccordions, setExpandedAccordions] = useState({});
   const [showHealthWidget, setShowHealthWidget] = useState(false);
+  const [redirectedAfterClaim, setRedirectedAfterClaim] = React.useState(false);
 
   const { authenticatedActor } = useAuth();
-  const { 
-    loading, 
-    fetchPrescription, 
-    getMedicine, 
-    clearPrescription 
+
+  // Replace local prescription/medicines/history state with hook-provided state and functions
+  const {
+    loading,
+    fetchPrescription,
+    getMedicine,
+    clearPrescription,
+    prescription: hookPrescription,
+    medicines: hookMedicines,
+    prescriptionHistory: hookPrescriptionHistory,
+    loadPrescriptionFromHistory
   } = usePrescription(showAlert);
 
   // Save current view to session when tab changes
@@ -49,45 +52,98 @@ function PatientDashboard({ user, showAlert }) {
     }
   }, []);
 
+  // Sync hook prescription -> redirect to history (only first time after claim)
+  React.useEffect(() => {
+    if (hookPrescription && !redirectedAfterClaim) {
+      setSelectedPrescription(hookPrescription);
+      setRedirectedAfterClaim(true);
+      // Put in history tab so user sees claimed entry
+      setActiveTab('history');
+      showAlert && showAlert('success', 'Prescription claimed and added to your history.');
+      if (user) sessionUtils.saveSession(user, 'history');
+    }
+  }, [hookPrescription, redirectedAfterClaim, user, showAlert]);
+
+  // Sync hook history into local UI (so PrescriptionHistory component shows it)
+  React.useEffect(() => {
+    // when backend/history changes, if currently viewing history keep it up-to-date
+    // we simply rely on hookPrescriptionHistory in render
+  }, [hookPrescriptionHistory]);
+
+  // handleAccessPrescription no longer needed (fetch handled inside PrescriptionAccess via hook) but kept if used elsewhere:
   const handleAccessPrescription = async (prescriptionId, prescriptionCode) => {
     const success = await fetchPrescription(prescriptionId, prescriptionCode);
     if (success) {
-      setActiveTab('prescription');
-      // Update session with new view
-      if (user) {
-        sessionUtils.saveSession(user, 'prescription');
-      }
+      setRedirectedAfterClaim(false); // allow redirect logic to run
+    } else {
+      showAlert && showAlert('error', 'Failed to access prescription.');
     }
   };
 
-  const handleLoadFromHistory = (historyEntry) => {
-    // Load prescription from history
-    setCurrentPrescription(historyEntry.prescription_data);
-    setMedicines(historyEntry.medicines_data);
-    setActiveTab('prescription');
-    showAlert('info', 'Prescription loaded from history');
+  const handleLoadFromHistory = async (historyEntry) => {
+    // Use the hook's load function so hook state is updated consistently
+    const ok = await loadPrescriptionFromHistory(historyEntry);
+    if (ok) {
+      setSelectedPrescription(historyEntry.prescription_data);
+      setActiveTab('prescription');
+      showAlert('info', 'Prescription loaded from history');
+      if (user) sessionUtils.saveSession(user, 'prescription');
+    } else {
+      showAlert('error', 'Failed to load prescription from history');
+    }
+  };
+
+  // Robust timestamp -> ms conversion used for UI
+  const toMilliseconds = (timestamp) => {
+    if (timestamp == null) return null;
+    // Arrays (some IC responses use opt as [value])
+    if (Array.isArray(timestamp) && timestamp.length > 0) timestamp = timestamp[0];
+    // BigInt
+    if (typeof timestamp === 'bigint') {
+      return Math.floor(Number(timestamp) / 1_000_000);
+    }
+    if (typeof timestamp === 'string') {
+      const parsed = parseInt(timestamp, 10);
+      if (isNaN(parsed)) return null;
+      // if looks like nanoseconds (> 1e15) convert
+      return parsed > 1e15 ? Math.floor(parsed / 1_000_000) : parsed;
+    }
+    if (typeof timestamp === 'number') {
+      // nanoseconds from backend are > 1e15; milliseconds are ~1e12
+      if (timestamp > 1e15) return Math.floor(timestamp / 1_000_000);
+      // if seconds (very small) convert to ms
+      if (timestamp < 1e12) return Math.floor(timestamp * 1000);
+      return timestamp;
+    }
+    return null;
   };
 
   const formatDate = (timestamp) => {
-    const numericTimestamp = typeof timestamp === 'string' ? parseInt(timestamp) : Number(timestamp);
-    return new Date(numericTimestamp / 1000000).toLocaleString();
+    const ms = toMilliseconds(timestamp);
+    if (!ms) return 'Invalid Date';
+    const d = new Date(ms);
+    return isNaN(d.getTime()) ? 'Invalid Date' : d.toLocaleString();
   };
 
   const formatDateShort = (timestamp) => {
-    const numericTimestamp = typeof timestamp === 'string' ? parseInt(timestamp) : Number(timestamp);
-    return new Date(numericTimestamp / 1000000).toLocaleDateString();
+    const ms = toMilliseconds(timestamp);
+    if (!ms) return 'Invalid Date';
+    const d = new Date(ms);
+    return isNaN(d.getTime()) ? 'Invalid Date' : d.toLocaleDateString();
   };
 
   const openAIAssistant = (specificContext = null, mode = 'general') => {
     let context;
     
-    if (mode === 'prescription' && currentPrescription) {
-      const prescriptionText = `Patient: ${currentPrescription.patient_name}
-Created: ${formatDate(currentPrescription.created_at)}
-Doctor Notes: ${currentPrescription.additional_notes || 'No additional notes'}
+    const prescriptionForContext = hookPrescription || selectedPrescription;
+    
+    if (mode === 'prescription' && prescriptionForContext) {
+      const prescriptionText = `Patient: ${prescriptionForContext.patient_name}
+Created: ${formatDate(prescriptionForContext.created_at)}
+Doctor Notes: ${prescriptionForContext.additional_notes || 'No additional notes'}
 
 Prescribed Medicines:
-${medicines.map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom_dosage || m.medicine?.dosage || 'N/A'})
+${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom_dosage || m.medicine?.dosage || 'N/A'})
   Instructions: ${m.custom_instructions || 'Take as prescribed'}
   Frequency: ${m.medicine?.frequency || 'N/A'}
   Duration: ${m.medicine?.duration || 'N/A'}
@@ -139,10 +195,12 @@ ${medicines.map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom_dosage || m
         user_type: 'patient'
       };
       
-      if (activeTab === 'prescription' && selectedPrescription) {
+      const prescriptionForChat = selectedPrescription || hookPrescription;
+      
+      if (activeTab === 'prescription' && prescriptionForChat) {
         // Get medicine details for context
         const medicineDetails = await Promise.all(
-          selectedPrescription.medicines.map(async (med) => {
+          prescriptionForChat.medicines.map(async (med) => {
             try {
               const medicine = await authenticatedActor.get_medicine(med.medicine_id);
               return medicine ? {
@@ -159,8 +217,8 @@ ${medicines.map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom_dosage || m
         
         const validMedicines = medicineDetails.filter(Boolean);
         const prescriptionData = {
-          patient_name: selectedPrescription.patient_name,
-          additional_notes: selectedPrescription.additional_notes,
+          patient_name: prescriptionForChat.patient_name,
+          additional_notes: prescriptionForChat.additional_notes,
           medicines: validMedicines
         };
         
@@ -182,7 +240,7 @@ ${medicines.map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom_dosage || m
         setMessages([...newMessages, aiMessage]);
         
         // Show doctor video for prescription mode responses
-        if (activeTab === 'prescription' && selectedPrescription) {
+        if (activeTab === 'prescription' && prescriptionForChat) {
           setCurrentVideoMessage(aiMessage);
           setShowDoctorVideo(true);
           
@@ -246,12 +304,10 @@ ${medicines.map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom_dosage || m
     { id: 'chat', icon: '💬', label: 'AI Chat' },
   ];
 
-  // Add prescription tab when prescription is loaded
-  if (currentPrescription) {
+  // Do NOT auto add prescription tab unless claimed
+  if (hookPrescription && !sidebarItems.find(i => i.id === 'prescription')) {
     const prescriptionTab = { id: 'prescription', icon: '💊', label: 'Current Prescription' };
-    if (!sidebarItems.find(item => item.id === 'prescription')) {
-      sidebarItems.splice(1, 0, prescriptionTab);
-    }
+    sidebarItems.splice(1, 0, prescriptionTab);
   }
 
   const renderAccessContent = () => (
@@ -260,12 +316,8 @@ ${medicines.map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom_dosage || m
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             <PrescriptionAccess 
-              onPrescriptionLoad={(prescriptionData) => {
-                console.log('LOG: Prescription loaded in dashboard:', prescriptionData);
-                setCurrentPrescription(prescriptionData);
-                setMedicines(prescriptionData.medicineDetails || []);
-                console.log('LOG: Medicines set:', prescriptionData.medicineDetails || []);
-                setActiveTab('prescription');
+              onPrescriptionLoad={() => {
+                setRedirectedAfterClaim(false); // ensure redirect/alert on next hookPrescription update
               }}
               showAlert={showAlert}
             />
@@ -322,7 +374,7 @@ ${medicines.map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom_dosage || m
     <div className="flex-1 bg-gray-50 overflow-auto">
       <div className="max-w-7xl mx-auto p-6">
         <PrescriptionHistory 
-          history={prescriptionHistory}
+          history={hookPrescriptionHistory || []}
           onLoadFromHistory={handleLoadFromHistory}
           formatDateShort={formatDateShort}
         />
@@ -424,7 +476,11 @@ ${medicines.map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom_dosage || m
   );
 
   const renderPrescriptionContent = () => {
-    if (!currentPrescription) return null;
+    // derive activePrescription and activeMedicines here and reuse throughout the render
+    const activePrescription = hookPrescription || selectedPrescription;
+    const activeMedicines = hookMedicines || [];
+
+    if (!activePrescription) return null;
 
     return (
       <div className="flex-1 bg-gray-50 overflow-auto">
@@ -437,24 +493,24 @@ ${medicines.map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom_dosage || m
                   <span className="text-2xl">📋</span>
                   <div>
                     <h1 className="text-2xl font-bold text-gray-900">Your Prescription</h1>
-                    <p className="text-gray-600">Patient: {currentPrescription.patient_name}</p>
+                    <p className="text-gray-600">Patient: {activePrescription.patient_name}</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-gray-500">Created</p>
-                  <p className="font-medium">{formatDate(currentPrescription.created_at)}</p>
+                  <p className="font-medium">{formatDate(activePrescription.created_at)}</p>
                 </div>
               </div>
             </div>
             
-            {currentPrescription.additional_notes && (
+            {activePrescription.additional_notes && (
               <div className="p-6">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-blue-600">📝</span>
                     <h3 className="font-semibold text-blue-800">Doctor's Notes</h3>
                   </div>
-                  <p className="text-blue-700">{currentPrescription.additional_notes}</p>
+                  <p className="text-blue-700">{activePrescription.additional_notes}</p>
                 </div>
               </div>
             )}
@@ -462,7 +518,7 @@ ${medicines.map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom_dosage || m
 
           {/* Medicines Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            {medicines.map((med, index) => (
+            {activeMedicines.map((med, index) => (
               <MedicationCard
                 key={`${med.medicine_id || med.id}-${index}`}
                 medicine={med}
@@ -522,7 +578,8 @@ ${medicines.map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom_dosage || m
               setShowHealthWidget(false);
               openAIAssistant(null, 'prescription');
             }}
-            currentPrescription={currentPrescription}
+            // pass the activePrescription here (was undefined currentPrescription)
+            currentPrescription={activePrescription}
             showAlert={showAlert}
           />
         )}
@@ -579,7 +636,8 @@ ${medicines.map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom_dosage || m
           contextData={aiChatContext}
           onClose={closeAIAssistant}
           title="MedSeal Health Partner - Your Health Guide"
-          initialMode={currentPrescription ? 'prescription' : 'general'}
+          // set initialMode based on hook/selected prescription presence (was using undefined currentPrescription)
+          initialMode={(hookPrescription || selectedPrescription) ? 'prescription' : 'general'}
         />
       )}
     </div>

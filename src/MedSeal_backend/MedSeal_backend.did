@@ -43,6 +43,7 @@ type Prescription = record {
     additional_notes: text;
     created_at: nat64;
     accessed_at: opt nat64;
+    patient_principal: opt text; // NEW: principal who claimed the prescription
 };
 
 type RegisterUserRequest = record {

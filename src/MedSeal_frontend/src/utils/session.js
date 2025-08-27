@@ -110,30 +110,17 @@ const normalizeUser = (user) => {
 };
 
 // Save user session
-const saveSession = (user, source = 'unknown') => {
+const saveSession = (user, currentView = 'dashboard') => {
   try {
-    if (!user || typeof user !== 'object') {
-      console.error('LOG: Invalid user object provided to saveSession:', user);
-      return false;
-    }
-
-    // Normalize the user object (BigInt conversion and role normalization)
-    const normalizedUser = normalizeUser(user);
-    
-    console.log('LOG: Saving session for user:', normalizedUser.name, 'from source:', source);
-    console.log('LOG: Normalized role:', normalizedUser.role);
-    
     const sessionData = {
-      user: normalizedUser,
-      timestamp: Date.now(),
-      source
+      user,
+      currentView,
+      timestamp: Date.now()
     };
-    
     localStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
-    console.log('LOG: Session saved successfully');
     return true;
   } catch (error) {
-    console.error('LOG: Error saving session:', error);
+    console.error('Error saving session:', error);
     return false;
   }
 };
@@ -142,47 +129,16 @@ const saveSession = (user, source = 'unknown') => {
 const loadSession = () => {
   try {
     const sessionData = localStorage.getItem(SESSION_KEY);
-    if (!sessionData) {
-      console.log('LOG: No session data found');
-      return null;
+    if (sessionData) {
+      const parsed = JSON.parse(sessionData);
+      // Check if session is less than 24 hours old
+      if (Date.now() - parsed.timestamp < 24 * 60 * 60 * 1000) {
+        return parsed;
+      }
     }
-
-    const parsed = JSON.parse(sessionData);
-    
-    if (!parsed.user) {
-      console.log('LOG: Session data exists but no user found');
-      return null;
-    }
-
-    // Normalize the loaded user with extra validation
-    console.log('LOG: Raw user from session:', parsed.user);
-    const normalizedUser = normalizeUser(parsed.user);
-    
-    // Extra validation to ensure the user has required fields
-    if (!normalizedUser.name || !normalizedUser.email || !normalizedUser.role) {
-      console.error('LOG: User missing required fields after loading session:', {
-        hasName: !!normalizedUser.name,
-        hasEmail: !!normalizedUser.email,
-        hasRole: !!normalizedUser.role,
-        role: normalizedUser.role
-      });
-      // Clear the corrupted session
-      clearSession();
-      return null;
-    }
-    
-    console.log('LOG: Session loaded successfully for user:', normalizedUser.name);
-    console.log('LOG: User role after loading:', normalizedUser.role);
-    
-    return {
-      user: normalizedUser,
-      timestamp: parsed.timestamp,
-      source: parsed.source || 'unknown'
-    };
+    return null;
   } catch (error) {
-    console.error('LOG: Error loading session:', error);
-    // Clear corrupted session data
-    clearSession();
+    console.error('Error loading session:', error);
     return null;
   }
 };
@@ -191,9 +147,10 @@ const loadSession = () => {
 const clearSession = () => {
   try {
     localStorage.removeItem(SESSION_KEY);
-    console.log('LOG: Session cleared');
+    return true;
   } catch (error) {
     console.error('Error clearing session:', error);
+    return false;
   }
 };
 
@@ -266,6 +223,9 @@ export const sessionUtils = {
   saveSession,
   loadSession,
   clearSession,
+  updateActivity,
+  isSessionValid,
+  needsRegistration,
   getRedirectPath,
   debugAuthState,
   normalizeUser,

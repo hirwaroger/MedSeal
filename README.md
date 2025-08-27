@@ -132,7 +132,7 @@ Before deploying MedSeal, ensure you have:
 
 2. **Install frontend dependencies**
    ```bash
-   npm install
+   npm install --force
    ```
 
 3. **Start local Internet Computer replica**

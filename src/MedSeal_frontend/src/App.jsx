@@ -16,34 +16,11 @@ function App() {
   }
 
   return (
-    <IdentityKitProvider
-      signerClientOptions={{
-        targets: [backendCanisterId]
-      }}
-      onConnectFailure={(error) => {
-        console.error('LOG: NFID connection failed:', error);
-        console.log('LOG: Connection failure details:', {
-          message: error.message,
-          stack: error.stack,
-          canisterId: backendCanisterId
-        });
-      }}
-      onConnectSuccess={() => {
-        console.log('LOG: NFID connection successful');
-        console.log('LOG: Connection established with canister:', backendCanisterId);
-      }}
-      onDisconnect={() => {
-        console.log('LOG: NFID disconnected');
-        // Clear session on disconnect and redirect to login page
-        import('./utils/session').then(({ sessionUtils }) => {
-          sessionUtils.clearSession();
-          console.log('LOG: Session cleared on disconnect');
-          window.location.href = '/login';
-        });
-      }}
-    >
+    <IdentityKitProvider>
       <AuthProvider>
-        <AppRoutes />
+        <div className="App">
+          <AppRoutes />
+        </div>
       </AuthProvider>
     </IdentityKitProvider>
   );

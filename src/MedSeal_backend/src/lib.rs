@@ -95,6 +95,7 @@ pub struct Prescription {
     pub additional_notes: String,
     pub created_at: u64,
     pub accessed_at: Option<u64>,
+    pub patient_principal: Option<String>, // NEW: principal of the patient who claimed it
 }
 
 #[derive(CandidType, Deserialize)]
@@ -222,8 +223,9 @@ fn register_user_with_principal(request: RegisterUserWithPrincipalRequest) -> Re
     }
     
     // Check if principal already has an account
+    let normalized_provided_principal = request.user_principal.trim().to_lowercase();
     let principal_exists = PRINCIPAL_TO_USER.with(|mapping| {
-        mapping.borrow().contains_key(&request.user_principal)
+        mapping.borrow().contains_key(&normalized_provided_principal)
     });
     
     if principal_exists {
@@ -249,7 +251,7 @@ fn register_user_with_principal(request: RegisterUserWithPrincipalRequest) -> Re
         email: request.email.clone(),
         role: request.role,
         license_number: final_license_number,
-        user_principal: request.user_principal.clone(),
+        user_principal: normalized_provided_principal.clone(), // store normalized
         created_at: time(),
     };
     
@@ -263,16 +265,16 @@ fn register_user_with_principal(request: RegisterUserWithPrincipalRequest) -> Re
         emails.borrow_mut().insert(request.email, user_id.clone());
     });
     
-    // Store principal mappings
+    // Store principal mappings using normalized principal
     PRINCIPAL_TO_USER.with(|mapping| {
-        mapping.borrow_mut().insert(request.user_principal.clone(), user_id.clone());
+        mapping.borrow_mut().insert(normalized_provided_principal.clone(), user_id.clone());
     });
     
     USER_PRINCIPALS.with(|mapping| {
-        mapping.borrow_mut().insert(user_id.clone(), request.user_principal.clone());
+        mapping.borrow_mut().insert(user_id.clone(), normalized_provided_principal.clone());
     });
     
-    ic_cdk::println!("Registered user {} with principal {} and user_id {}", user.name, request.user_principal, user_id);
+    ic_cdk::println!("Registered user {} with principal {} and user_id {}", user.name, normalized_provided_principal, user_id);
     
     Ok(user)
 }
@@ -798,6 +800,7 @@ fn create_prescription(request: CreatePrescriptionRequest) -> Result<String> {
         additional_notes: request.additional_notes,
         created_at: time(),
         accessed_at: None,
+        patient_principal: None, // NEW: not claimed yet
     };
     
     // Debug: print the created prescription
@@ -814,8 +817,10 @@ fn create_prescription(request: CreatePrescriptionRequest) -> Result<String> {
 fn get_prescription(prescription_id: String, code: String) -> Result<Prescription> {
     ic_cdk::println!("Getting prescription with ID: {} and code: {}", prescription_id, code);
     
-    let caller_principal = ic_cdk::caller().to_string();
-    ic_cdk::println!("Caller principal: {}", caller_principal);
+    // Normalize caller principal (keys stored normalized on registration)
+    let caller_principal_raw = ic_cdk::caller().to_string();
+    let caller_principal = caller_principal_raw.trim().to_lowercase();
+    ic_cdk::println!("Caller principal (normalized): '{}'", caller_principal);
     
     PRESCRIPTIONS.with(|prescriptions| {
         let mut prescriptions_map = prescriptions.borrow_mut();
@@ -823,32 +828,88 @@ fn get_prescription(prescription_id: String, code: String) -> Result<Prescriptio
         // Debug: print all prescriptions
         ic_cdk::println!("Total prescriptions in storage: {}", prescriptions_map.len());
         for (id, prescription) in prescriptions_map.iter() {
-            ic_cdk::println!("Prescription ID: {}, Code: {}, Patient: {}, Medicines: {}", 
-                id, prescription.prescription_code, prescription.patient_name, prescription.medicines.len());
-            
-            // Debug: print medicine IDs in this prescription
-            for (i, med) in prescription.medicines.iter().enumerate() {
-                ic_cdk::println!("  Medicine {}: ID={}, Custom Dosage={:?}, Instructions={}", 
-                    i, med.medicine_id, med.custom_dosage, med.custom_instructions);
-            }
+            ic_cdk::println!("Prescription ID: {}, Code: {}, Patient: {}, Medicines: {}, Accessed: {:?}", 
+                id, prescription.prescription_code, prescription.patient_name, prescription.medicines.len(), prescription.accessed_at);
         }
         
         if let Some(prescription) = prescriptions_map.get_mut(&prescription_id) {
             ic_cdk::println!("Found prescription, checking code: {} vs {}", prescription.prescription_code, code);
-            if prescription.prescription_code == code {
-                // Security: Only allow access once per prescription to prevent sharing
-                // You could also implement more sophisticated patient verification here
-                ic_cdk::println!("Prescription code verified for caller: {}", caller_principal);
-                
-                // Only mark as accessed when retrieved by patient, not when created
-                if prescription.accessed_at.is_none() {
-                    prescription.accessed_at = Some(time());
-                    ic_cdk::println!("Prescription marked as accessed for the first time at: {}", time());
-                } else {
-                    ic_cdk::println!("Prescription was already accessed before at: {:?}", prescription.accessed_at);
+            if prescription.prescription_code != code {
+                ic_cdk::println!("Invalid prescription code");
+                return Err("Invalid prescription code".to_string());
+            }
+            
+            // Determine caller identity & role (if any)
+            let caller_user_id_opt = PRINCIPAL_TO_USER.with(|mapping| {
+                mapping.borrow().get(&caller_principal).cloned()
+            });
+            
+            let caller_is_doctor = if let Some(ref uid) = caller_user_id_opt {
+                USERS.with(|users| {
+                    users.borrow().get(uid).map(|u| matches!(u.role, UserRole::Doctor)).unwrap_or(false)
+                })
+            } else {
+                false
+            };
+            
+            // If caller is a doctor, ensure they are the owner of this prescription.
+            if caller_is_doctor {
+                let caller_user_id = caller_user_id_opt.unwrap();
+                if caller_user_id != prescription.doctor_id {
+                    ic_cdk::println!(
+                        "Unauthorized: doctor (user_id {}) attempted to access prescription owned by {}",
+                        caller_user_id, prescription.doctor_id
+                    );
+                    return Err("Unauthorized to access this prescription".to_string());
                 }
                 
-                // Validate that referenced medicines exist and log their details
+                // Owner doctor accessing: do not mark as accessed (patient access only)
+                ic_cdk::println!("Doctor {} accessing own prescription; not marking as accessed", caller_user_id);
+                
+                // Validate referenced medicines and log details (same as before)
+                for (i, med) in prescription.medicines.iter().enumerate() {
+                    let medicine_exists = MEDICINES.with(|medicines| {
+                        medicines.borrow().contains_key(&med.medicine_id)
+                    });
+                    ic_cdk::println!("Medicine {} (ID: {}) exists: {}", i, med.medicine_id, medicine_exists);
+                    
+                    if medicine_exists {
+                        let medicine_details = MEDICINES.with(|medicines| {
+                            medicines.borrow().get(&med.medicine_id).cloned()
+                        });
+                        if let Some(details) = medicine_details {
+                            ic_cdk::println!("Medicine {} details: name={}, active={}, guide_text_length={}", 
+                                i, details.name, details.is_active, details.guide_text.len());
+                        }
+                    }
+                }
+                
+                return Ok(prescription.clone());
+            } else {
+                // Patient or anonymous access: enforce claiming rules
+                // If prescription already claimed by another principal -> deny
+                if let Some(existing_principal) = &prescription.patient_principal {
+                    if existing_principal != &caller_principal {
+                        ic_cdk::println!("Unauthorized: prescription already claimed by another principal: {}", existing_principal);
+                        return Err("Prescription already claimed by another user".to_string());
+                    }
+                    // claimed by same principal -> allow, do not change claim time
+                    ic_cdk::println!("Prescription previously claimed by this principal: {}", caller_principal);
+                } else {
+                    // Not yet claimed — only allow claim if it hasn't been accessed (extra protection)
+                    if prescription.accessed_at.is_none() {
+                        let current_time = time();
+                        prescription.accessed_at = Some(current_time);
+                        prescription.patient_principal = Some(caller_principal.clone());
+                        ic_cdk::println!("Prescription claimed by {} and marked as accessed at: {}", caller_principal, current_time);
+                    } else {
+                        // accessed_at set but no patient_principal — treat as already accessed (deny)
+                        ic_cdk::println!("Prescription has an accessed_at timestamp but no claimant; denying access for safety");
+                        return Err("Prescription unavailable".to_string());
+                    }
+                }
+                
+                // Validate referenced medicines and log details (same as before)
                 for (i, med) in prescription.medicines.iter().enumerate() {
                     let medicine_exists = MEDICINES.with(|medicines| {
                         medicines.borrow().contains_key(&med.medicine_id)
@@ -867,9 +928,6 @@ fn get_prescription(prescription_id: String, code: String) -> Result<Prescriptio
                 }
                 
                 Ok(prescription.clone())
-            } else {
-                ic_cdk::println!("Invalid prescription code");
-                Err("Invalid prescription code".to_string())
             }
         } else {
             ic_cdk::println!("Prescription not found");
@@ -947,15 +1005,15 @@ fn generate_id() -> String {
 }
 
 fn generate_prescription_id() -> String {
-    // Use a simpler format that doesn't cause BigInt issues
+    // Use a simpler format that works with frontend parsing
     let timestamp = time();
-    format!("{:06}", (timestamp % 1000000))
+    format!("{}", (timestamp % 1000000))
 }
 
 fn generate_prescription_code() -> String {
-    // Use a simpler format that doesn't cause BigInt issues
+    // Use a simpler format that works with frontend parsing
     let timestamp = time();
-    format!("{:06}", ((timestamp * 13) % 1000000))
+    format!("{}", ((timestamp * 13) % 1000000))
 }
 
 #[ic_cdk::query]

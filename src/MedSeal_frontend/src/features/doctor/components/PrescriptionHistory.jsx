@@ -5,6 +5,43 @@ function PrescriptionHistory({ prescriptions, onTabChange, showAlert }) {
     showAlert('success', 'Prescription code copied to clipboard!');
   };
 
+  const unwrapOpt = (ts) => {
+    if (Array.isArray(ts)) return ts.length ? ts[0] : null;
+    return ts;
+  };
+
+  const formatTimestamp = (timestamp) => {
+    try {
+      timestamp = unwrapOpt(timestamp);
+      if (timestamp === null || timestamp === undefined) return '—';
+      
+      let numericTimestamp;
+      if (typeof timestamp === 'bigint') {
+        numericTimestamp = Number(timestamp);
+      } else if (typeof timestamp === 'string') {
+        numericTimestamp = parseInt(timestamp, 10);
+      } else {
+        numericTimestamp = Number(timestamp);
+      }
+      if (numericTimestamp <= 0 || isNaN(numericTimestamp)) return '—';
+      if (numericTimestamp > 1e15) {
+        numericTimestamp = Math.floor(numericTimestamp / 1000000);
+      }
+      const date = new Date(numericTimestamp);
+      if (isNaN(date.getTime())) return '—';
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      console.error('Error formatting timestamp:', timestamp, error);
+      return '—';
+    }
+  };
+
   return (
     <div className="flex-1 bg-gray-50 overflow-auto">
       <div className="max-w-7xl mx-auto p-6">
@@ -75,25 +112,19 @@ function PrescriptionHistory({ prescriptions, onTabChange, showAlert }) {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {new Date(Number(prescription.created_at) / 1000000).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
+                        {formatTimestamp(prescription.created_at)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          prescription.accessed_at && prescription.accessed_at.length > 0
+                          (Array.isArray(prescription.accessed_at) ? prescription.accessed_at.length > 0 : !!prescription.accessed_at)
                             ? 'bg-green-100 text-green-800'
                             : 'bg-yellow-100 text-yellow-800'
                         }`}>
-                          {prescription.accessed_at && prescription.accessed_at.length > 0 ? 'Accessed' : 'Pending'}
+                          {(Array.isArray(prescription.accessed_at) ? prescription.accessed_at.length > 0 : !!prescription.accessed_at) ? 'Accessed' : 'Pending'}
                         </span>
-                        {prescription.accessed_at && prescription.accessed_at.length > 0 && (
+                        {(Array.isArray(prescription.accessed_at) ? prescription.accessed_at.length > 0 : !!prescription.accessed_at) && (
                           <div className="text-xs text-gray-500 mt-1">
-                            Accessed: {new Date(Number(prescription.accessed_at[0]) / 1000000).toLocaleDateString()}
+                            Accessed: {formatTimestamp(prescription.accessed_at)}
                           </div>
                         )}
                       </td>

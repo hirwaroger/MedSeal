@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import TalkingAvatar from './TalkingAvatar';
 
 // Simple markdown parser for AI responses
 const parseMarkdown = (text) => {
@@ -23,8 +24,15 @@ function AIChat({ userType, contextData, onClose, title, initialMode = 'general'
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showContextPanel, setShowContextPanel] = useState(true);
+  // NEW: Speech settings - updated logic
+  const [speechEnabled, setSpeechEnabled] = useState(true);
+  const [lastAssistantMessage, setLastAssistantMessage] = useState('');
+  const [currentlySpeaking, setCurrentlySpeaking] = useState(false);
+  const [showDoctorVideo, setShowDoctorVideo] = useState(true); // persist
+  const lastAssistantIndexRef = useRef(-1);
   const chatBoxRef = useRef(null);
   const inputRef = useRef(null);
+  const videoTimerRef = useRef(null);
   const { authenticatedActor } = useAuth();
 
   useEffect(() => {
@@ -32,6 +40,24 @@ function AIChat({ userType, contextData, onClose, title, initialMode = 'general'
       chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Detect new assistant messages
+  useEffect(() => {
+    const idx = messages.map(m => m.role).lastIndexOf('assistant');
+    if (idx > lastAssistantIndexRef.current) {
+      lastAssistantIndexRef.current = idx;
+      const msg = messages[idx];
+      setLastAssistantMessage(msg?.content || '');
+      setShowDoctorVideo(true);
+    }
+  }, [messages]);
+
+  // cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (videoTimerRef.current) clearTimeout(videoTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (inputRef.current) {
@@ -275,7 +301,20 @@ I can recommend appropriate medicines from your repository and suggest dosages, 
     }
   };
 
-  const currentQuickQuestions = quickQuestions[chatMode][userType] || quickQuestions.general[userType];
+  const currentQuickQuestions = 
+    // Safe access: handle missing chatMode keys and treat medicine-recommendation as prescription
+    ((quickQuestions[chatMode] && quickQuestions[chatMode][userType]) ||
+     (chatMode === 'medicine-recommendation' && quickQuestions.prescription?.[userType]) ||
+     quickQuestions.general[userType]);
+
+  // Handle speech start/end
+  const handleSpeechStart = () => {
+    setCurrentlySpeaking(true);
+  };
+
+  const handleSpeechEnd = () => {
+    setCurrentlySpeaking(false);
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
@@ -296,6 +335,18 @@ I can recommend appropriate medicines from your repository and suggest dosages, 
               </div>
             </div>
             <div className="flex items-center gap-1 sm:gap-3 shrink-0">
+              {/* Speech toggle */}
+              <button 
+                onClick={() => setSpeechEnabled(!speechEnabled)}
+                className={`hidden sm:block text-xs px-2 py-1 sm:px-3 sm:py-2 rounded-md border transition-colors ${
+                  speechEnabled 
+                    ? 'border-green-300 bg-green-50 text-green-700 hover:bg-green-100' 
+                    : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+                title={speechEnabled ? 'Disable voice responses' : 'Enable voice responses'}
+              >
+                {speechEnabled ? '🔊 Voice On' : '🔇 Voice Off'}
+              </button>
               <button onClick={copyTranscript} className="hidden sm:block text-xs px-2 py-1 sm:px-3 sm:py-2 rounded-md border border-gray-200 hover:bg-gray-50">Copy</button>
               <button onClick={clearChat} className="hidden sm:block text-xs px-2 py-1 sm:px-3 sm:py-2 rounded-md border border-gray-200 hover:bg-gray-50">Clear</button>
               <button onClick={() => setShowContextPanel(s => !s)} className="hidden lg:block text-xs px-2 py-1 sm:px-3 sm:py-2 rounded-md border border-gray-200 hover:bg-gray-50">
@@ -393,6 +444,40 @@ I can recommend appropriate medicines from your repository and suggest dosages, 
               <h4 className="font-semibold text-gray-800 text-sm sm:text-base">Context</h4>
               <button onClick={() => setShowContextPanel(false)} className="text-xs sm:text-sm text-gray-500 hover:text-gray-700">Close</button>
             </div>
+
+            {/* Talking Avatar Section */}
+            {showDoctorVideo && (
+              <div className="mb-4 bg-white rounded-lg border border-gray-100 p-2">
+                <div className="flex items-center justify-between mb-2">
+                  <h5 className="text-sm font-medium text-gray-700">Dr. MedSeal Assistant</h5>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => setSpeechEnabled(s => !s)}
+                      className={`px-2 py-1 rounded text-xs ${
+                        speechEnabled ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                      title={speechEnabled ? 'Disable voice' : 'Enable voice'}
+                    >
+                      {speechEnabled ? '🔊' : '🔇'}
+                    </button>
+                    <button
+                      onClick={() => setShowDoctorVideo(false)}
+                      className="px-2 py-1 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded text-xs"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+                <TalkingAvatar
+                  text={lastAssistantMessage}
+                  autoSpeak={speechEnabled}
+                  onSpeechStart={handleSpeechStart}
+                  onSpeechEnd={handleSpeechEnd}
+                  isVisible={showDoctorVideo}
+                />
+              </div>
+            )}
 
             {/* Show prescription or medicines summary */}
             {chatMode === 'prescription' && contextData?.prescription && (

@@ -1,4 +1,29 @@
 function DashboardOverview({ user, medicines, prescriptions, onTabChange, onOpenAI }) {
+  const unwrapOpt = (ts) => Array.isArray(ts) ? (ts.length ? ts[0] : null) : ts;
+
+  const formatTimestamp = (timestamp) => {
+    try {
+      timestamp = unwrapOpt(timestamp);
+      if (timestamp === null || timestamp === undefined) return '—';
+      let numericTimestamp;
+      if (typeof timestamp === 'bigint') numericTimestamp = Number(timestamp);
+      else if (typeof timestamp === 'string') numericTimestamp = parseInt(timestamp, 10);
+      else numericTimestamp = Number(timestamp);
+      if (numericTimestamp > 1e15) numericTimestamp = Math.floor(numericTimestamp / 1000000);
+      if (numericTimestamp <= 0 || isNaN(numericTimestamp)) return '—';
+      const date = new Date(numericTimestamp);
+      return isNaN(date.getTime()) ? '—' : date.toLocaleDateString();
+    } catch {
+      return '—';
+    }
+  };
+
+  const accessedCount = prescriptions.filter(p => {
+    const a = p.accessed_at;
+    return Array.isArray(a) ? a.length > 0 : !!a;
+  }).length;
+  const pendingCount = prescriptions.length - accessedCount;
+
   return (
     <div className="flex-1 bg-gray-50 overflow-auto">
       <div className="max-w-7xl mx-auto p-6">
@@ -52,9 +77,7 @@ function DashboardOverview({ user, medicines, prescriptions, onTabChange, onOpen
           <div className="bg-blue-500 text-white rounded-xl p-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-3xl font-bold mb-1">
-                  {prescriptions.filter(p => p.accessed_at && p.accessed_at.length > 0).length}
-                </div>
+                <div className="text-3xl font-bold mb-1">{accessedCount}</div>
                 <div className="text-blue-100 text-sm">Accessed</div>
               </div>
               <div className="text-4xl opacity-80">✅</div>
@@ -64,9 +87,7 @@ function DashboardOverview({ user, medicines, prescriptions, onTabChange, onOpen
           <div className="bg-yellow-600 text-white rounded-xl p-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-3xl font-bold mb-1">
-                  {prescriptions.filter(p => !p.accessed_at || p.accessed_at.length === 0).length}
-                </div>
+                <div className="text-3xl font-bold mb-1">{pendingCount}</div>
                 <div className="text-yellow-100 text-sm">Pending</div>
               </div>
               <div className="text-4xl opacity-80">⏰</div>
@@ -105,15 +126,15 @@ function DashboardOverview({ user, medicines, prescriptions, onTabChange, onOpen
                           Created for {prescription.patient_name}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {new Date(Number(prescription.created_at) / 1000000).toLocaleDateString()}
+                          {formatTimestamp(prescription.created_at)}
                         </p>
                       </div>
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        prescription.accessed_at && prescription.accessed_at.length > 0
+                        prescription.accessed_at && prescription.accessed_at !== null
                           ? 'bg-green-100 text-green-800'
                           : 'bg-yellow-100 text-yellow-800'
                       }`}>
-                        {prescription.accessed_at && prescription.accessed_at.length > 0 ? 'Accessed' : 'Pending'}
+                        {prescription.accessed_at && prescription.accessed_at !== null ? 'Accessed' : 'Pending'}
                       </span>
                     </div>
                   </div>
