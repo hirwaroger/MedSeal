@@ -4,10 +4,11 @@
 [![Rust](https://img.shields.io/badge/Rust-Backend-orange)](https://www.rust-lang.org/)
 [![React](https://img.shields.io/badge/React-Frontend-blue)](https://reactjs.org/)
 [![AI Powered](https://img.shields.io/badge/AI-Powered-green)](https://github.com/IC-Innovations/ic-llm)
+[![Accessibility](https://img.shields.io/badge/Accessibility-Enabled-purple)](https://internetcomputer.org/)
 
 ## 🏥 Project Overview
 
-**MedSeal** is a revolutionary blockchain-based digital health platform built on the Internet Computer that bridges the gap between doctors and patients through secure, transparent, and AI-enhanced prescription management.
+**MedSeal** is a revolutionary blockchain-based digital health platform built on the Internet Computer that bridges the gap between doctors and patients through secure, transparent, and AI-enhanced prescription management with comprehensive video and audio accessibility features.
 
 ### 🎯 Problem Statement
 
@@ -17,58 +18,71 @@ Traditional prescription systems face critical challenges:
 - **Limited access** to medication information and guidance
 - **No real-time support** for medication-related queries
 - **Fragmented communication** between healthcare providers and patients
+- **Accessibility barriers** for users with visual impairments or reading difficulties
+- **Language and comprehension barriers** in understanding medical information
 
 ### 💡 Solution
 
 MedSeal provides a comprehensive digital health ecosystem that:
 - **Secures prescriptions** on an immutable blockchain ledger
 - **Enables real-time communication** between doctors and patients
-- **Provides AI-powered health assistance** for medication guidance
+- **Provides AI-powered health assistance** with video and audio responses for enhanced accessibility
 - **Offers OCR technology** for digitizing medicine guides
 - **Ensures privacy** through decentralized infrastructure
+- **Delivers multi-modal AI responses** via video, audio, and text for universal accessibility
+- **Supports users with disabilities** through Internet Computer's robust accessibility framework
 
 ## 🚀 Key Features
 
 ### For Doctors 👨‍⚕️
 - **Medicine Repository Management**: Build and manage a comprehensive database of medicines with OCR-powered guide extraction
 - **Smart Prescription Creation**: Generate secure digital prescriptions with unique verification codes
-- **AI Medical Assistant**: Get intelligent support for drug interactions, dosages, and clinical decisions
+- **AI Medical Assistant**: Get intelligent support for drug interactions, dosages, and clinical decisions via video, audio, or text
 - **Patient Monitoring**: Track prescription access and patient engagement
 - **Analytics Dashboard**: View comprehensive statistics and recent activity
+- **Accessibility Support**: Communicate with patients through multiple formats including video explanations
 
 ### For Patients 👥
 - **Secure Prescription Access**: Access prescriptions using unique ID and verification codes
 - **Detailed Medicine Information**: View comprehensive medicine details, dosages, and side effects
-- **AI Health Partner**: Get personalized medication guidance and health support
+- **AI Health Partner with Video Assistant**: Get personalized medication guidance through interactive video responses with synchronized audio for enhanced understanding
 - **Prescription History**: Maintain a secure history of all accessed prescriptions
-- **Medicine Guides**: Access detailed medicine guides and instructions
+- **Medicine Guides**: Access detailed medicine guides and instructions in multiple formats
+- **Audio-First Experience**: Listen to prescription details and medicine guidance for users who prefer auditory learning or have visual impairments
 
 ### Technical Features 🔧
 - **Blockchain Security**: Built on Internet Computer for maximum security and decentralization
 - **OCR Technology**: Automatic text extraction from PDF medicine guides
-- **AI Integration**: Powered by Llama 3.1 8B model for intelligent health assistance
-- **Responsive Design**: Modern, mobile-friendly interface
+- **AI Video Assistant**: Powered by Llama 3.1 8B model delivering intelligent health assistance through video and audio responses
+- **Accessibility Framework**: Internet Computer-secured accessibility features ensuring equal access for all users
+- **Responsive Design**: Modern, mobile-friendly interface with audio-visual support
 - **Real-time Updates**: Instant synchronization across the platform
+- **Multi-Modal AI Responses**: Text, audio, and video outputs for comprehensive user support
 
 ## 🛠 Technology Stack
 
 ### Backend
 - **Rust**: High-performance, memory-safe backend development
-- **Internet Computer**: Decentralized blockchain platform
+- **Internet Computer**: Decentralized blockchain platform with built-in accessibility support
 - **Candid**: Interface description language for IC canisters
-- **ic-llm**: AI integration for health assistance
+- **ic-llm**: AI integration for health assistance with video/audio capabilities
 
 ### Frontend
 - **React**: Modern UI framework
 - **JavaScript/JSX**: Interactive user interfaces
-- **Bootstrap**: Professional, responsive styling
+- **Bootstrap**: Professional, responsive styling with accessibility compliance
 - **PDF.js**: OCR and PDF processing
 - **Canvas API**: Image processing for OCR
+- **Web Audio API**: High-quality audio processing for AI responses
+- **WebRTC**: Real-time video communication for AI assistant
+- **Speech Synthesis API**: Text-to-speech for accessibility features
 
 ### Infrastructure
-- **Internet Computer Protocol**: Decentralized hosting and computation
+- **Internet Computer Protocol**: Decentralized hosting, computation, and accessibility framework
 - **DFX**: Development framework for IC applications
 - **Node.js**: Development environment and package management
+- **Video Processing Libraries**: AI-powered video generation and streaming
+- **Audio Compression**: Optimized audio delivery for various network conditions
 
 ## 📋 Prerequisites
 
@@ -226,23 +240,41 @@ Before deploying MedSeal, ensure you have:
 - **Secure Authentication**: Identity verification through Internet Computer
 - **Data Encryption**: Sensitive information encrypted at rest and in transit
 
+### Accessibility Security
+- **Internet Computer Accessibility Framework**: Robust security for users with disabilities
+- **Secure Audio/Video Streaming**: Encrypted multi-modal content delivery
+- **Privacy-Preserving AI Responses**: Video and audio responses generated securely without compromising user data
+
 ### Access Control
 - **Prescription Isolation**: Patients can only access their own prescriptions
 - **Doctor-Patient Boundaries**: Clear separation of doctor and patient data
 - **Time-Based Access**: Prescriptions can have access restrictions
+- **Multi-Modal Access Control**: Secure access through text, audio, and video interfaces
 
 ## 🤖 AI Integration
 
 ### Health Partner Features
-- **Medication Guidance**: Personalized advice based on prescribed medicines
-- **Drug Interaction Warnings**: AI-powered interaction detection
-- **Side Effect Information**: Comprehensive side effect explanations
-- **Dosage Recommendations**: AI-assisted dosage optimization
+- **Video Assistant Responses**: AI delivers personalized health guidance through engaging video responses with synchronized audio
+- **Audio-First Accessibility**: Complete medication guidance available through high-quality audio for users with visual impairments
+- **Multi-Modal Communication**: Choose between text, audio, video, or combined responses based on user preferences
+- **Medication Guidance**: Personalized advice based on prescribed medicines delivered through preferred medium
+- **Drug Interaction Warnings**: AI-powered interaction detection with video explanations
+- **Side Effect Information**: Comprehensive side effect explanations through interactive video content
+- **Dosage Recommendations**: AI-assisted dosage optimization with visual and audio demonstrations
 
 ### AI Models Used
-- **Llama 3.1 8B**: Primary language model for health assistance
-- **Context-Aware Responses**: AI understands user type and prescription context
-- **Medical Knowledge Base**: Trained on medical literature and drug information
+- **Llama 3.1 8B**: Primary language model for health assistance with video/audio generation capabilities
+- **Context-Aware Responses**: AI understands user type, prescription context, and accessibility preferences
+- **Medical Knowledge Base**: Trained on medical literature and drug information with multi-modal output capabilities
+- **Video Generation AI**: Specialized models for creating personalized health guidance videos
+- **Speech Synthesis**: Advanced text-to-speech for natural audio responses
+
+### Accessibility Features
+- **Internet Computer Accessibility**: Leverages IC's built-in accessibility framework for secure, inclusive experiences
+- **Screen Reader Compatibility**: Full support for assistive technologies
+- **High Contrast Mode**: Visual accessibility for users with vision impairments
+- **Keyboard Navigation**: Complete keyboard accessibility for all platform features
+- **Adjustable Playback**: Variable speed audio and video playback for different learning needs
 
 ## 🔧 Development
 

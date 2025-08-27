@@ -51,24 +51,24 @@ const LandingPage = ({ onLogin, onRegister }) => {
 
   const solutionFeatures = [
     { icon: <i className="fa-solid fa-lock" aria-hidden="true" />, title: 'Blockchain Security', desc: 'Immutable prescription records on Internet Computer' },
-    { icon: <i className="fa-solid fa-robot" aria-hidden="true" />, title: 'AI Health Assistant', desc: 'Llama 3.1 powered medication guidance' },
+    { icon: <i className="fa-solid fa-robot" aria-hidden="true" />, title: 'AI Health Assistant', desc: 'Llama 3.1 powered medication guidance with audio & video responses' },
     { icon: <i className="fa-solid fa-mobile-screen-button" aria-hidden="true" />, title: 'Digital Ecosystem', desc: 'Seamless doctor-patient communication' },
     { icon: <i className="fa-solid fa-eye" aria-hidden="true" />, title: 'OCR Technology', desc: 'Digitize medicine guides automatically' },
     { icon: <i className="fa-solid fa-user-shield" aria-hidden="true" />, title: 'Privacy First', desc: 'Decentralized, role-based access control' },
-    { icon: <i className="fa-solid fa-bolt" aria-hidden="true" />, title: 'Real-time Support', desc: '24/7 AI-powered health assistance' }
+    { icon: <i className="fa-solid fa-bolt" aria-hidden="true" />, title: 'Real-time Support', desc: '24/7 AI-powered health assistance with multimedia responses' }
   ];
 
   const doctorFeatures = [
     { icon: <i className="fa-solid fa-pills" aria-hidden="true" />, title: 'Medicine Repository', desc: 'Build comprehensive medicine database with OCR-powered guide extraction' },
     { icon: <i className="fa-solid fa-file-medical" aria-hidden="true" />, title: 'Smart Prescriptions', desc: 'Generate secure digital prescriptions with unique verification codes' },
-    { icon: <i className="fa-solid fa-robot" aria-hidden="true" />, title: 'AI Medical Assistant', desc: 'Intelligent support for drug interactions and clinical decisions' },
+    { icon: <i className="fa-solid fa-robot" aria-hidden="true" />, title: 'AI Medical Assistant', desc: 'Intelligent support with audio & video responses for drug interactions and clinical decisions' },
     { icon: <i className="fa-solid fa-chart-line" aria-hidden="true" />, title: 'Analytics Dashboard', desc: 'Track prescription access and patient engagement metrics' }
   ];
 
   const patientFeatures = [
     { icon: <i className="fa-solid fa-lock" aria-hidden="true" />, title: 'Secure Access', desc: 'Access prescriptions using unique ID and verification codes' },
     { icon: <i className="fa-solid fa-clipboard" aria-hidden="true" />, title: 'Detailed Information', desc: 'View comprehensive medicine details, dosages, and side effects' },
-    { icon: <i className="fa-solid fa-comments" aria-hidden="true" />, title: 'AI Health Partner', desc: 'Get personalized medication guidance and health support' },
+    { icon: <i className="fa-solid fa-comments" aria-hidden="true" />, title: 'AI Health Partner', desc: 'Get personalized medication guidance through text, audio, and video responses' },
     { icon: <i className="fa-solid fa-file-prescription" aria-hidden="true" />, title: 'Prescription History', desc: 'Maintain secure history of all accessed prescriptions' }
   ];
 
@@ -81,21 +81,21 @@ const LandingPage = ({ onLogin, onRegister }) => {
 
   const innovationPoints = [
     {
+      icon: <i className="fa-solid fa-video" aria-hidden="true" />,
+      title: 'AI Audio & Video Responses',
+      desc: 'First healthcare AI with multimedia explanations - audio and video guidance for complex medical instructions',
+      highlight: 'Revolutionary'
+    },
+    {
       icon: <i className="fa-solid fa-globe" aria-hidden="true" />,
       title: 'Internet Computer Blockchain',
       desc: 'First healthcare platform leveraging IC for true decentralization',
-      highlight: 'Revolutionary'
+      highlight: 'Cutting-Edge'
     },
     {
       icon: <i className="fa-solid fa-brain" aria-hidden="true" />,
       title: 'Context-Aware AI',
-      desc: 'Llama 3.1 8B model trained for medical assistance',
-      highlight: 'Cutting-Edge'
-    },
-    {
-      icon: <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />,
-      title: 'OCR Medicine Processing',
-      desc: 'Automatic digitization of PDF medicine guides',
+      desc: 'Llama 3.1 8B model trained for medical assistance with multimedia outputs',
       highlight: 'Innovative'
     },
     {
@@ -230,7 +230,7 @@ const LandingPage = ({ onLogin, onRegister }) => {
                   </h1>
 
                   <p className="text-sm md:text-base text-blue-100 leading-relaxed max-w-xl mb-3">
-                    First blockchain prescription platform with AI assistance. 
+                    First blockchain prescription platform with AI assistance featuring <span className="text-yellow-300 font-bold">audio & video responses</span>. 
                     <span className="text-white font-semibold">Secure, intelligent, revolutionary.</span>
                   </p>
                 </div>
@@ -242,10 +242,11 @@ const LandingPage = ({ onLogin, onRegister }) => {
                     <div className="font-semibold text-white">Blockchain Security</div>
                     <div className="text-sm text-blue-200">Immutable & Tamper-proof</div>
                   </div>
-                  <div className="bg-white/10 backdrop-blur-md rounded-xl p-5 border border-white/20 hover:bg-white/20 hover:scale-105 transition-all duration-300 group">
-                    <div className="text-2xl mb-2"><i className="fa-solid fa-robot" aria-hidden="true" /></div>
-                    <div className="font-semibold text-white">AI-Powered</div>
-                    <div className="text-sm text-blue-200">Smart Health Assistance</div>
+                  <div className="bg-white/10 backdrop-blur-md rounded-xl p-5 border border-white/20 hover:bg-white/20 hover:scale-105 transition-all duration-300 group relative">
+                    <div className="absolute -top-2 -right-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs font-bold px-2 py-1 rounded-full animate-pulse">NEW</div>
+                    <div className="text-2xl mb-2"><i className="fa-solid fa-video" aria-hidden="true" /></div>
+                    <div className="font-semibold text-white">Audio & Video AI</div>
+                    <div className="text-sm text-blue-200">Multimedia Health Guidance</div>
                   </div>
                   <div className="bg-white/10 backdrop-blur-md rounded-xl p-5 border border-white/20 hover:bg-white/20 hover:scale-105 transition-all duration-300 group">
                     <div className="text-2xl mb-2"><i className="fa-solid fa-globe" aria-hidden="true" /></div>
@@ -428,7 +429,7 @@ const LandingPage = ({ onLogin, onRegister }) => {
                 <div className="w-6 h-6 bg-white rounded-lg flex items-center justify-center">
                   <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-                  </svg>
+                </svg>
                 </div>
                 <span className="font-bold text-lg">MedSeal Technology</span>
               </div>
@@ -436,7 +437,7 @@ const LandingPage = ({ onLogin, onRegister }) => {
                 Advanced <span className="text-blue-300">Technology Stack</span>
               </h2>
               <p className="text-xl text-blue-200 max-w-3xl mx-auto">
-                MedSeal leverages cutting-edge blockchain and AI technology for professional healthcare solutions
+                MedSeal leverages cutting-edge blockchain and AI technology with breakthrough audio & video response capabilities
               </p>
             </div>
 
@@ -655,15 +656,15 @@ const LandingPage = ({ onLogin, onRegister }) => {
                 Intelligent <span className="text-blue-300">Clinical Support</span>
               </h2>
               <p className="mt-4 text-lg text-blue-200 max-w-3xl mx-auto">
-                Context-aware assistance powered by the Llama 3.1 8B model enhances medication safety and comprehension.
+                Revolutionary AI healthcare assistant featuring <span className="text-yellow-300 font-bold">audio and video explanations</span> - the first of its kind in digital healthcare.
               </p>
             </div>
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
               {[
-                { icon:<i className="fa-solid fa-comments" aria-hidden="true" />, title:'Medication Guidance', desc:'Natural language clarification of usage, timing & adherence.' },
-                { icon:<i className="fa-solid fa-triangle-exclamation" aria-hidden="true" />, title:'Interaction Checks', desc:'Proactive alerts for potential multi-drug conflicts.' },
-                { icon:<i className="fa-solid fa-vial" aria-hidden="true" />, title:'Side Effect Insights', desc:'Readable summaries of likelihood & mitigation steps.' },
-                { icon:<i className="fa-solid fa-ruler" aria-hidden="true" />, title:'Dosage Assistance', desc:'AI-supported reasoning to assist providers (non-diagnostic).' }
+                { icon:<i className="fa-solid fa-comments" aria-hidden="true" />, title:'Multimedia Guidance', desc:'Natural language clarification with audio & video responses for complex medication instructions.' },
+                { icon:<i className="fa-solid fa-volume-high" aria-hidden="true" />, title:'Audio Responses', desc:'Clear spoken explanations for medication timing, dosage, and usage instructions.' },
+                { icon:<i className="fa-solid fa-video" aria-hidden="true" />, title:'Video Demonstrations', desc:'Visual explanations and demonstrations for proper medication administration.' },
+                { icon:<i className="fa-solid fa-triangle-exclamation" aria-hidden="true" />, title:'Smart Alerts', desc:'Multi-modal alerts for potential drug interactions and safety warnings.' }
               ].map((a,i)=>(
                 <div key={i} className="relative group">
                   <div className="h-full bg-white/10 border border-white/15 rounded-2xl p-6 backdrop-blur-md group-hover:bg-white/15 transition">
@@ -675,7 +676,7 @@ const LandingPage = ({ onLogin, onRegister }) => {
               ))}
             </div>
             <p className="text-xs text-blue-300 mt-8 text-center">
-              AI outputs are assistive and not a substitute for professional medical judgment.
+              AI outputs including audio and video responses are assistive and not a substitute for professional medical judgment.
             </p>
           </div>
         </section>
