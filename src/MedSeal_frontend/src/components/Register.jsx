@@ -3,8 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ConnectWallet } from "@nfid/identitykit/react";
 import { useAuth } from '../hooks/useAuth';
 import { sessionUtils } from '../utils/session';
+import { useFavicon } from './useFavicon';
 
 function Register({ showAlert }) {
+  useFavicon('/favicon.png');
   const { isConnected, accounts, identityUser, user_principal, register, loading, user, authenticatedActor, userIndexLoaded, findUserByPrincipal } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
@@ -245,12 +247,14 @@ function Register({ showAlert }) {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
           {/* Info Column */}
           <div className="hidden md:col-span-5 md:flex flex-col justify-center pl-8 space-y-8">
+            {/* Replace icon square with favicon */}
             <div className="inline-flex items-center space-x-3 bg-white/15 backdrop-blur-md rounded-full px-6 py-3 border border-white/20">
-              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-lg">
-                <svg className="w-6 h-6 text-blue-700" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-                  <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-                </svg>
-              </div>
+              <img
+                src="/favicon.png"
+                alt="MedSeal"
+                className="w-10 h-10 rounded-lg bg-white ring-1 ring-white/30 object-contain"
+                onError={(e)=>{e.currentTarget.style.display='none';}}
+              />
               <div>
                 <h2 className="text-xl font-bold text-white">MedSeal</h2>
                 <p className="text-sm text-blue-200">Join the healthcare revolution</p>
@@ -321,11 +325,13 @@ function Register({ showAlert }) {
               {/* Header with process status */}
               <div className="text-center mb-6">
                 <div className="inline-flex items-center justify-center space-x-3 mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-blue-500 rounded-xl flex items-center justify-center shadow-lg">
-                    <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-                      <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-                    </svg>
-                  </div>
+                  {/* <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-blue-500 rounded-xl flex items-center justify-center shadow-lg"> -> replaced */}
+                  <img
+                    src="/favicon.png"
+                    alt="MedSeal"
+                    className="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 p-2"
+                    onError={(e)=>{e.currentTarget.style.display='none';}}
+                  />
                   <div>
                     <h1 className="text-2xl font-bold text-gray-900">Create Account</h1>
                     <p className="text-sm text-gray-600">Join MedSeal with your wallet</p>

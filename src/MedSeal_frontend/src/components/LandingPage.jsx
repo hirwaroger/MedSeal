@@ -1,6 +1,8 @@
 import React, { memo, useState, useCallback, useEffect } from 'react';
+import { useFavicon } from './useFavicon';
 
 const LandingPage = ({ onLogin, onRegister }) => {
+  useFavicon('/favicon.png');
   const [activeTab, setActiveTab] = useState('doctors');
 
   // mobile menu state
@@ -131,11 +133,13 @@ const LandingPage = ({ onLogin, onRegister }) => {
           <div className="flex items-center justify-between h-16">
             {/* Logo and Brand */}
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-                </svg>
-              </div>
+              {/* Replaced gradient square with favicon */}
+              <img
+                src="/favicon.png"
+                alt="MedSeal"
+                className="w-10 h-10 rounded-lg ring-1 ring-blue-200 object-contain bg-white"
+                onError={(e)=>{e.currentTarget.style.display='none';}}
+              />
               <div>
                 <h1 className="text-xl font-bold text-gray-900">MedSeal</h1>
                 <p className="text-xs text-gray-500">Healthcare Platform</p>
@@ -209,11 +213,15 @@ const LandingPage = ({ onLogin, onRegister }) => {
               <div className="lg:col-span-7 space-y-2">
                 {/* MedSeal Brand Badge */}
                 <div className="inline-flex items-center space-x-2 bg-white/15 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/20 animate-fade-in">
-                  <div className="w-5 h-5 bg-white rounded-md flex items-center justify-center">
-                    <svg className="w-3 h-3 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-                    </svg>
-                  </div>
+                  {/* <div className="w-5 h-5 bg-white rounded-md flex items-center justify-center"> */}
+                  {/* Replace with favicon */}
+                  <img
+                    src="/favicon.png"
+                    alt="MedSeal"
+                    className="w-5 h-5 rounded-md object-contain"
+                    onError={(e)=>{e.currentTarget.style.display='none';}}
+                  />
+                  {/* </div> */}
                   <span className="text-sm font-bold">MedSeal</span>
                   <span className="text-xs text-blue-200 bg-blue-500/30 px-2 py-0.5 rounded-full">NEW</span>
                 </div>

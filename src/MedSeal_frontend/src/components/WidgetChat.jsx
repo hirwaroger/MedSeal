@@ -164,11 +164,13 @@ function WidgetChat({ userType, contextData, onClose, onExpand, showAlert }) {
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-sky-500 text-white p-4 flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-            </svg>
-          </div>
+          {/* Replace svg container with favicon */}
+          <img
+            src="/favicon.png"
+            alt="MedSeal"
+            className="w-8 h-8 rounded-full bg-white/90 p-1 object-contain"
+            onError={(e)=>{e.currentTarget.style.display='none';}}
+          />
           <div>
             <h4 className="font-semibold text-sm">Health Partner</h4>
             <p className="text-xs text-white/80">AI Assistant</p>

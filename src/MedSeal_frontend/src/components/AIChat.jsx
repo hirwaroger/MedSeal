@@ -324,9 +324,13 @@ I can recommend appropriate medicines from your repository and suggest dosages, 
           {/* Header */}
           <div className="flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-100 bg-gradient-to-r from-white to-white/80 shrink-0">
             <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-              <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-blue-600 to-sky-500 flex items-center justify-center text-white text-sm sm:text-lg font-bold shadow-md">
-                {userType === 'doctor' ? 'Dr' : 'HP'}
-              </div>
+              {/* Replace gradient circle with favicon */}
+              <img
+                src="/favicon.png"
+                alt="MedSeal"
+                className="w-8 h-8 sm:w-12 sm:h-12 rounded-full ring-1 ring-blue-200 object-contain bg-white"
+                onError={(e)=>{e.currentTarget.style.display='none';}}
+              />
               <div className="min-w-0 flex-1">
                 <h3 className="text-sm sm:text-lg font-semibold text-gray-900 truncate">{title || 'MedSeal Health Partner'}</h3>
                 <p className="text-xs sm:text-sm text-gray-500 truncate">

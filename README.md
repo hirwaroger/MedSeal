@@ -173,6 +173,10 @@ npm install --force
 ./deploy.sh
 ```
 
+## 🖼 Favicon & Branding
+The platform favicon and primary visual mark live at `/favicon.png`.  
+It is programmatically applied via the `useFavicon` hook across routed pages and visually shown beside the brand name in navigation bars and authentication screens.
+
 ## 📱 User Experience & Interface
 
 ### Landing Page Features
@@ -340,7 +344,27 @@ dfx canister logs MedSeal_backend
 **MedSeal** - Revolutionizing healthcare through blockchain technology and AI assistance with multimedia accessibility. Built with ❤️ on the Internet Computer.
 
 **Live Demo**: Experience the platform at [MedSeal Platform](https://your-deployment-url.ic0.app)
-   npm install
+
+## 🚧 Troubleshooting Common Issues
+
+1. **DFX Not Installed Error**
+   - Ensure DFX is installed by running `dfx --version`
+   - If not installed, follow the [DFX installation guide](https://internetcomputer.org/docs/current/developer-docs/setup/installation)
+
+2. **Canister Build Errors**
+   ```bash
+   # Clean and rebuild canisters
+   dfx canister uninstall-code MedSeal_backend
+   dfx canister install MedSeal_backend
+   ```
+
+3. **Frontend Not Loading**
+   ```bash
+   # Check if dfx is running
+   dfx status
+   
+   # If not running, start dfx
+   dfx start --background
    ```
 
 4. **Canister Deployment Fails**

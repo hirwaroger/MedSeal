@@ -7,8 +7,10 @@ import AddMedicineForm from '../features/doctor/components/AddMedicineForm';
 import PrescriptionForm from '../features/doctor/components/PrescriptionForm';
 import PrescriptionHistory from '../features/doctor/components/PrescriptionHistory';
 import AIChat from './AIChat';
+import { useFavicon } from './useFavicon';
 
 function DoctorDashboard({ user, showAlert }) {
+  useFavicon('/favicon.png');
   const [activeTab, setActiveTab] = useState('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [guideDialog, setGuideDialog] = useState({ open: false, medicine: null });
@@ -103,9 +105,13 @@ function DoctorDashboard({ user, showAlert }) {
         {/* Sidebar Header */}
         <div className="p-4 border-b border-blue-500/30">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-              <span className="text-xl">🏥</span>
-            </div>
+            {/* Replace emoji circle with favicon */}
+            <img
+              src="/favicon.png"
+              alt="MedSeal"
+              className="w-10 h-10 rounded-full bg-white/80 p-1 object-contain ring-2 ring-white/20"
+              onError={(e)=>{e.currentTarget.style.display='none';}}
+            />
             {!sidebarCollapsed && (
               <div>
                 <h2 className="font-semibold">Dr. {user.name}</h2>

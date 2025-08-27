@@ -7,8 +7,10 @@ import PrescriptionHistory from '../features/patient/components/PrescriptionHist
 import MedicationCard from '../features/patient/components/MedicationCard';
 import HealthWidget from '../features/patient/components/HealthWidget';
 import AIChat from './AIChat';
+import { useFavicon } from './useFavicon';
 
 function PatientDashboard({ user, showAlert }) {
+  useFavicon('/favicon.png');
   const [activeTab, setActiveTab] = useState('access');
   const [messages, setMessages] = useState([]);
   const [currentMessage, setCurrentMessage] = useState('');
@@ -594,9 +596,13 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
         {/* Sidebar Header */}
         <div className="p-4 border-b border-blue-500/30">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-              <span className="text-xl">👤</span>
-            </div>
+            {/* Replace generic avatar circle */}
+            <img
+              src="/favicon.png"
+              alt="MedSeal"
+              className="w-10 h-10 rounded-full bg-white/80 p-1 object-contain ring-2 ring-white/30"
+              onError={(e)=>{e.currentTarget.style.display='none';}}
+            />
             <div>
               <h2 className="font-semibold">{user.name}</h2>
               <p className="text-sm text-blue-100">Patient Portal</p>
