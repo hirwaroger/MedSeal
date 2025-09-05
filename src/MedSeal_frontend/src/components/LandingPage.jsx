@@ -7,6 +7,13 @@ const LandingPage = ({ onLogin, onRegister }) => {
 
   // mobile menu state
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  // PWA installation states
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isAppInstalled, setIsAppInstalled] = useState(false);
+  const [showInstallModal, setShowInstallModal] = useState(false);
+  const [isInstalling, setIsInstalling] = useState(false);
+  const [showPWABanner, setShowPWABanner] = useState(true);
 
   // Add safe handlers so clicks work even if props are not provided
   const handleLogin = useCallback(() => {
@@ -24,6 +31,40 @@ const LandingPage = ({ onLogin, onRegister }) => {
       window.location.href = '/register';
     }
   }, [onRegister]);
+
+  // PWA installation handling
+  useEffect(() => {
+    // Check if app is already installed
+    const checkIfInstalled = () => {
+      if (window.matchMedia('(display-mode: standalone)').matches || 
+          window.navigator.standalone === true) {
+        setIsAppInstalled(true);
+        setShowPWABanner(false);
+      }
+    };
+
+    // Listen for beforeinstallprompt event
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    // Listen for app installed event
+    const handleAppInstalled = () => {
+      setIsAppInstalled(true);
+      setShowPWABanner(false);
+      setDeferredPrompt(null);
+    };
+
+    checkIfInstalled();
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
 
   // close mobile menu when resizing above mobile breakpoint
   useEffect(() => {
@@ -117,6 +158,30 @@ const LandingPage = ({ onLogin, onRegister }) => {
     }
   }, []);
 
+  const handleInstallPWA = async () => {
+    if (isInstalling) return;
+    
+    if (deferredPrompt) {
+      setIsInstalling(true);
+      try {
+        const result = await deferredPrompt.prompt();
+        if (result.outcome === 'accepted') {
+          setIsAppInstalled(true);
+          setShowPWABanner(false);
+          setShowInstallModal(false);
+        }
+      } catch (error) {
+        console.error('PWA installation failed:', error);
+      } finally {
+        setIsInstalling(false);
+        setDeferredPrompt(null);
+      }
+    } else {
+      // Show manual installation instructions
+      setShowInstallModal(true);
+    }
+  };
+
   return (
     <div className="bg-white text-gray-900 overflow-hidden">
       {/* skip link for keyboard users */}
@@ -149,6 +214,10 @@ const LandingPage = ({ onLogin, onRegister }) => {
             {/* Navigation Links - desktop */}
             <div className="hidden md:flex items-center space-x-8">
               <button type="button" onClick={() => scrollToSection('features')} className="text-gray-600 hover:text-blue-600 font-medium transition-colors">Features</button>
+              <button type="button" onClick={() => scrollToSection('pwa')} className="text-gray-600 hover:text-green-600 font-medium transition-colors">
+                <i className="fa-solid fa-mobile-screen-button mr-1" aria-hidden="true" />
+                Install App
+              </button>
               <button type="button" onClick={() => scrollToSection('technology')} className="text-gray-600 hover:text-blue-600 font-medium transition-colors">Technology</button>
               <button type="button" onClick={() => scrollToSection('security')} className="text-gray-600 hover:text-blue-600 font-medium transition-colors">Security</button>
               <button type="button" onClick={() => scrollToSection('quick-start')} className="text-gray-600 hover:text-blue-600 font-medium transition-colors">Get Started</button>
@@ -197,10 +266,65 @@ const LandingPage = ({ onLogin, onRegister }) => {
         )}
       </nav>
 
+      {/* PWA Install Notification */}
+      {showPWABanner && !isAppInstalled && (
+        <div className="fixed top-16 left-0 right-0 z-40 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 shadow-lg border-b border-blue-500">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                  <i className="fa-solid fa-mobile-screen-button text-white" aria-hidden="true" />
+                </div>
+                <div>
+                  <div className="font-semibold text-sm">📱 Install MedSeal as PWA</div>
+                  <div className="text-xs text-blue-100">Get native app experience with offline access & push notifications</div>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="hidden sm:flex items-center space-x-4 text-xs text-blue-200">
+                  <div className="flex items-center space-x-1">
+                    <span className="w-1 h-1 bg-green-400 rounded-full animate-pulse"></span>
+                    <span>Offline Ready</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <span className="w-1 h-1 bg-yellow-400 rounded-full animate-pulse"></span>
+                    <span>Real-time Updates</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <span className="w-1 h-1 bg-purple-400 rounded-full animate-pulse"></span>
+                    <span>Native Performance</span>
+                  </div>
+                </div>
+                <button 
+                  onClick={handleInstallPWA}
+                  disabled={isInstalling}
+                  className="px-3 py-1 bg-white/20 hover:bg-white/30 disabled:bg-white/10 disabled:cursor-not-allowed rounded-md text-xs font-medium transition-colors flex items-center space-x-1"
+                >
+                  {isInstalling && (
+                    <svg className="animate-spin -ml-1 mr-2 h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  )}
+                  <span>{isInstalling ? 'Installing...' : 'Install Now'}</span>
+                </button>
+                <button 
+                  onClick={() => setShowPWABanner(false)}
+                  className="ml-2 p-1 hover:bg-white/20 rounded text-xs"
+                  aria-label="Dismiss install banner"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main content for skip link target */}
-      <main id="main-content" className="pt-16">
+      <main id="main-content" className="pt-28">
         {/* Hero Section */}
-        <section id="hero" className="relative h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 text-white overflow-hidden flex items-center pt-16" aria-label="Hero">
+        <section id="hero" className="relative h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 text-white overflow-hidden flex items-center pt-0" aria-label="Hero">
           {/* Animated Background (non-interactive so it can't block clicks) */}
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute top-1/4 left-0 w-72 h-72 bg-blue-400 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse"></div>
@@ -424,6 +548,148 @@ const LandingPage = ({ onLogin, onRegister }) => {
                     </div>
                   ))}
                 </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* PWA Features */}
+        <section id="pwa" className="py-20 bg-gradient-to-br from-green-50 to-blue-50 scroll-mt-16" aria-label="PWA Features">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-16">
+              <div className="inline-flex items-center space-x-2 bg-green-600 text-white rounded-full px-6 py-3 mb-6">
+                <i className="fa-solid fa-mobile-screen-button" aria-hidden="true" />
+                <span className="font-bold">Progressive Web App</span>
+              </div>
+              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+                Install MedSeal as a <span className="text-green-600">Native App</span>
+              </h2>
+              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+                Experience MedSeal like a native mobile app with enhanced performance, offline capabilities, and seamless integration
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+              {[
+                {
+                  icon: <i className="fa-solid fa-download" aria-hidden="true" />,
+                  title: 'One-Click Install',
+                  desc: 'Install directly from your browser without app stores',
+                  color: 'from-blue-500 to-blue-600'
+                },
+                {
+                  icon: <i className="fa-solid fa-wifi" aria-hidden="true" />,
+                  title: 'Offline Access',
+                  desc: 'Access core features even without internet connection',
+                  color: 'from-green-500 to-green-600'
+                },
+                {
+                  icon: <i className="fa-solid fa-bolt" aria-hidden="true" />,
+                  title: 'Native Performance',
+                  desc: 'Lightning-fast loading and smooth interactions',
+                  color: 'from-yellow-500 to-orange-500'
+                },
+                {
+                  icon: <i className="fa-solid fa-bell" aria-hidden="true" />,
+                  title: 'Push Notifications',
+                  desc: 'Get real-time updates and important alerts',
+                  color: 'from-purple-500 to-purple-600'
+                }
+              ].map((feature, index) => (
+                <div key={index} className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 hover:shadow-xl hover:-translate-y-2 transition-all duration-300">
+                  <div className={`w-12 h-12 bg-gradient-to-r ${feature.color} rounded-xl flex items-center justify-center text-2xl text-white mb-4`}>
+                    {feature.icon}
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">{feature.title}</h3>
+                  <p className="text-gray-600 leading-relaxed">{feature.desc}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Installation Guide */}
+            <div className="bg-white rounded-2xl p-8 shadow-xl border border-gray-200">
+              <div className="text-center mb-8">
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">How to Install MedSeal PWA</h3>
+                <p className="text-gray-600">Choose your browser and follow the simple steps</p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[
+                  {
+                    browser: 'Chrome/Edge',
+                    icon: <i className="fa-brands fa-chrome" aria-hidden="true" />,
+                    steps: ['Look for install icon in address bar', 'Click "Install MedSeal"', 'Confirm installation']
+                  },
+                  {
+                    browser: 'Safari',
+                    icon: <i className="fa-brands fa-safari" aria-hidden="true" />,
+                    steps: ['Tap Share button', 'Select "Add to Home Screen"', 'Tap "Add" to confirm']
+                  },
+                  {
+                    browser: 'Firefox',
+                    icon: <i className="fa-brands fa-firefox" aria-hidden="true" />,
+                    steps: ['Open menu (three lines)', 'Select "Install this app"', 'Click "Install" button']
+                  }
+                ].map((guide, index) => (
+                  <div key={index} className="text-center">
+                    <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center text-3xl text-white mx-auto mb-4">
+                      {guide.icon}
+                    </div>
+                    <h4 className="text-lg font-bold text-gray-900 mb-3">{guide.browser}</h4>
+                    <ol className="text-sm text-gray-600 space-y-2">
+                      {guide.steps.map((step, stepIndex) => (
+                        <li key={stepIndex} className="flex items-start space-x-2">
+                          <span className="w-5 h-5 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
+                            {stepIndex + 1}
+                          </span>
+                          <span>{step}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-8 text-center">
+                <button 
+                  onClick={handleInstallPWA}
+                  disabled={isInstalling}
+                  className="px-8 py-3 bg-gradient-to-r from-green-600 to-blue-600 text-white font-bold rounded-xl hover:from-green-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-200 shadow-lg flex items-center justify-center space-x-2"
+                >
+                  {isInstalling ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Installing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <i className="fa-solid fa-download" aria-hidden="true" />
+                      <span>Install MedSeal Now</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Benefits Highlight */}
+            <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl">
+                <div className="text-3xl mb-3">🚀</div>
+                <h4 className="font-bold text-gray-900 mb-2">Faster Loading</h4>
+                <p className="text-sm text-gray-600">Up to 3x faster loading times compared to web browser</p>
+              </div>
+              <div className="text-center p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-xl">
+                <div className="text-3xl mb-3">📱</div>
+                <h4 className="font-bold text-gray-900 mb-2">Native Feel</h4>
+                <p className="text-sm text-gray-600">Full-screen experience with native app-like interactions</p>
+              </div>
+              <div className="text-center p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl">
+                <div className="text-3xl mb-3">🔄</div>
+                <h4 className="font-bold text-gray-900 mb-2">Auto Updates</h4>
+                <p className="text-sm text-gray-600">Always stay updated with the latest features automatically</p>
               </div>
             </div>
           </div>
@@ -795,6 +1061,80 @@ const LandingPage = ({ onLogin, onRegister }) => {
           </div>
         </footer>
       </main>
+
+      {/* PWA Install Modal */}
+      {showInstallModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <i className="fa-solid fa-mobile-screen-button text-3xl text-white" aria-hidden="true" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">Install MedSeal PWA</h3>
+              <p className="text-gray-600">Follow these simple steps to install MedSeal as a native app</p>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center space-x-3 mb-2">
+                  <i className="fa-brands fa-chrome text-xl text-blue-500" aria-hidden="true" />
+                  <span className="font-semibold">Chrome / Edge</span>
+                </div>
+                <ol className="text-sm text-gray-600 space-y-1 ml-6">
+                  <li>1. Look for the install icon <i className="fa-solid fa-download" aria-hidden="true" /> in the address bar</li>
+                  <li>2. Click "Install MedSeal"</li>
+                  <li>3. Confirm installation</li>
+                </ol>
+              </div>
+
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center space-x-3 mb-2">
+                  <i className="fa-brands fa-safari text-xl text-blue-500" aria-hidden="true" />
+                  <span className="font-semibold">Safari (iOS)</span>
+                </div>
+                <ol className="text-sm text-gray-600 space-y-1 ml-6">
+                  <li>1. Tap the Share button <i className="fa-solid fa-share" aria-hidden="true" /></li>
+                  <li>2. Select "Add to Home Screen"</li>
+                  <li>3. Tap "Add" to confirm</li>
+                </ol>
+              </div>
+
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center space-x-3 mb-2">
+                  <i className="fa-brands fa-firefox text-xl text-orange-500" aria-hidden="true" />
+                  <span className="font-semibold">Firefox</span>
+                </div>
+                <ol className="text-sm text-gray-600 space-y-1 ml-6">
+                  <li>1. Open menu (three lines)</li>
+                  <li>2. Select "Install this app"</li>
+                  <li>3. Click "Install" button</li>
+                </ol>
+              </div>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowInstallModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Got it
+              </button>
+              <button
+                onClick={() => {
+                  setShowInstallModal(false);
+                  // Try to trigger install prompt if available
+                  if (deferredPrompt) {
+                    handleInstallPWA();
+                  }
+                }}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Try Install
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Custom Styles */}
       <style jsx>{`

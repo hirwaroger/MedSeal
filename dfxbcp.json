@@ -1,0 +1,33 @@
+{
+  "canisters": {
+    "MedSeal_backend": {
+      "candid": "src/MedSeal_backend/MedSeal_backend.did",
+      "package": "MedSeal_backend",
+      "type": "rust"
+    },
+    "MedSeal_frontend": {
+      "dependencies": [
+        "MedSeal_backend"
+      ],
+      "source": [
+        "src/MedSeal_frontend/dist"
+      ],
+      "type": "assets",
+      "workspace": "MedSeal_frontend"
+    },
+    "icp_ledger_canister": {
+      "type": "custom",
+      "candid": "https://github.com/dfinity/ic/releases/download/ledger-suite-icp-2025-08-29/ledger.did",
+      "wasm": "https://github.com/dfinity/ic/releases/download/ledger-suite-icp-2025-08-29/ledger-canister_notify-method.wasm.gz",
+      "init_arg": "(variant { Init = record { minting_account =  \"f61e230879e15d0ee13f250b89b0212eb1039c24788cba02291a2a485a013f38\"; initial_values = vec { record { \"f61e230879e15d0ee13f250b89b0212eb1039c24788cba02291a2a485a013f38\"; record { e8s = 10_000_000_000 : nat64; }; }; }; send_whitelist = vec {}; transfer_fee = opt record { e8s = 10_000 : nat64; }; token_symbol = opt \"LICP\"; token_name = opt \"Local ICP\"; } })"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "output_env_file": ".env",
+  "version": 1
+}

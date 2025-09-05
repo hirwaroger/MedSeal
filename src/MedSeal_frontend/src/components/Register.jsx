@@ -322,6 +322,18 @@ function Register({ showAlert }) {
           {/* Form Card */}
           <div className="md:col-span-7">
             <div className="bg-white/95 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20">
+              {/* Back to Home */}
+              <div className="mb-4">
+                <Link
+                  to="/"
+                  className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-700"
+                  aria-label="Back to home page"
+                >
+                  <i className="fa-solid fa-arrow-left mr-2" aria-hidden="true"></i>
+                  Back to Home
+                </Link>
+              </div>
+
               {/* Header with process status */}
               <div className="text-center mb-6">
                 <div className="inline-flex items-center justify-center space-x-3 mb-4">

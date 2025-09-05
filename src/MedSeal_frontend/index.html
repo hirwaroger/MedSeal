@@ -17,6 +17,7 @@
   <!-- Font Awesome (icons) -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
   
+  <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#2563eb" />
   <meta name="description" content="MedSeal - Secure blockchain-based medical prescription management system with AI assistance" />
 </head>
@@ -28,6 +29,56 @@
   </div>
   <div id="root"></div>
   <script type="module" src="/src/main.jsx"></script>
+  
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(registration => {
+            console.log('SW registered: ', registration);
+          })
+          .catch(registrationError => {
+            console.log('SW registration failed: ', registrationError);
+          });
+      });
+    }
+
+    // PWA Install Prompt
+    let deferredPrompt;
+    const installButton = document.createElement('button');
+    
+    window.addEventListener('beforeinstallprompt', (e) => {
+      console.log('beforeinstallprompt Event fired');
+      e.preventDefault();
+      deferredPrompt = e;
+      
+      // Show install button or notification
+      showInstallPromotion();
+    });
+
+    function showInstallPromotion() {
+      // This will be called when install prompt is available
+      console.log('Install promotion available');
+    }
+
+    window.addEventListener('appinstalled', () => {
+      console.log('PWA was installed');
+      deferredPrompt = null;
+    });
+
+    // Function to trigger install - will be called from React component
+    window.installPWA = async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User response to the install prompt: ${outcome}`);
+        deferredPrompt = null;
+        return outcome === 'accepted';
+      }
+      return false;
+    };
+  </script>
 </body>
 
 </html>
