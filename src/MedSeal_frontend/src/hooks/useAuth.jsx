@@ -80,12 +80,12 @@ export const AuthProvider = ({ children }) => {
       try {
         setLoadingIndex(true);
         console.log('LOG: Loading user principal index from backend...');
-        const tuples = await authenticatedActor.list_user_principals();
+        const principalEntries = await authenticatedActor.list_user_principals();
         const map = {};
-        (tuples || []).forEach(t => {
-          // Expect [principal, user_id, email]
-          const principal = (t[0] || '').trim().toLowerCase();
-          map[principal] = { user_id: t[1], email: t[2] };
+        (principalEntries || []).forEach(entry => {
+          // Expect PrincipalEntry record { principal_ent, user_id, email }
+          const principal = (entry.principal_ent || '').trim().toLowerCase();
+          map[principal] = { user_id: entry.user_id, email: entry.email };
         });
         console.log('LOG: User principal index loaded. Count:', Object.keys(map).length);
         setUserPrincipalIndex(map);
@@ -321,8 +321,10 @@ export const AuthProvider = ({ children }) => {
         };
       }
       
-      // Normalize role format for backend - use string instead of variant
-      const roleString = userData.role === 'Doctor' ? 'Doctor' : 'Patient';
+      // Normalize role format for backend - handle Doctor, Admin, Patient
+      let roleString = 'Patient';
+      if (userData.role === 'Doctor') roleString = 'Doctor';
+      else if (userData.role === 'Admin') roleString = 'Admin';
       
       // Use register_user_with_principal for explicit principal handling
       try {
@@ -330,7 +332,7 @@ export const AuthProvider = ({ children }) => {
         const result = await authenticatedActor.register_user_with_principal({
           name: userData.name,
           email: userData.email,
-          role: { [roleString]: null }, // Use variant format
+          role: { [roleString]: null }, // Use variant format including Admin support
           license_number: userData.license_number || "",
           user_principal: user_principal.trim().toLowerCase()
         });

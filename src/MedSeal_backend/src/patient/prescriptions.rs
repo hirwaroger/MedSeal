@@ -6,7 +6,7 @@ use crate::shared::utils as utils;
 #[ic_cdk::query]
 pub fn get_prescription(prescription_code: String, patient_contact: String) -> Result<Prescription> {
     match storage::get_prescription_by_code(&prescription_code) {
-        Some(mut prescription) => {
+        Some(prescription) => {
             // Verify patient contact matches
             if prescription.patient_contact != patient_contact {
                 return Err("Invalid prescription code or patient contact".to_string());

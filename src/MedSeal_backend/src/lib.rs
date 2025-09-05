@@ -7,6 +7,7 @@ use std::cell::RefCell;
 pub mod shared;
 pub mod doctor;
 pub mod patient;
+pub mod admin;
 pub mod ai;
 
 // Re-export commonly used types
@@ -66,4 +67,6 @@ pub use shared::auth::*;
 pub use doctor::medicines::*;
 pub use doctor::prescriptions::*;
 pub use patient::prescriptions::*;
+pub use admin::users::*;
+pub use admin::verification::*;
 pub use ai::chat::*;

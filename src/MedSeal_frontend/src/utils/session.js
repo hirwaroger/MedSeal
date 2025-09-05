@@ -42,7 +42,7 @@ const normalizeUserRole = (role) => {
   }
   
   if (typeof role === 'object' && role !== null) {
-    // Handle variant format: { Doctor: null } or { Patient: null }
+    // Handle variant format: { Doctor: null } or { Patient: null } or { Admin: null }
     if (role.hasOwnProperty('Doctor')) {
       console.log('LOG: Found Doctor role in object format');
       return 'Doctor';
@@ -50,6 +50,10 @@ const normalizeUserRole = (role) => {
     if (role.hasOwnProperty('Patient')) {
       console.log('LOG: Found Patient role in object format');
       return 'Patient';
+    }
+    if (role.hasOwnProperty('Admin')) {
+      console.log('LOG: Found Admin role in object format');
+      return 'Admin';
     }
     
     // Handle nested format
@@ -113,14 +117,27 @@ const normalizeUser = (user) => {
 const saveSession = (user, currentView = 'dashboard') => {
   try {
     const sessionData = {
-      user,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        license_number: user.license_number || '',
+        user_principal: user.user_principal || '',
+        created_at: user.created_at || Date.now(),
+        verification_status: user.verification_status || 'NotRequired',
+        last_active: user.last_active,
+        total_prescriptions: user.total_prescriptions || 0,
+        total_medicines: user.total_medicines || 0,
+      },
       currentView,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
     localStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
+    console.log('LOG: Session saved successfully for user:', user.name);
     return true;
   } catch (error) {
-    console.error('Error saving session:', error);
+    console.error('LOG: Error saving session:', error);
     return false;
   }
 };
@@ -129,16 +146,33 @@ const saveSession = (user, currentView = 'dashboard') => {
 const loadSession = () => {
   try {
     const sessionData = localStorage.getItem(SESSION_KEY);
-    if (sessionData) {
-      const parsed = JSON.parse(sessionData);
-      // Check if session is less than 24 hours old
-      if (Date.now() - parsed.timestamp < 24 * 60 * 60 * 1000) {
-        return parsed;
-      }
+    if (!sessionData) {
+      console.log('LOG: No session data found');
+      return null;
     }
-    return null;
+
+    const parsed = JSON.parse(sessionData);
+    
+    // Check if session is expired (24 hours)
+    const isExpired = Date.now() - parsed.timestamp > 24 * 60 * 60 * 1000;
+    if (isExpired) {
+      console.log('LOG: Session expired, clearing');
+      sessionUtils.clearSession();
+      return null;
+    }
+
+    // Validate user data
+    if (!parsed.user || !parsed.user.id || !parsed.user.name || !parsed.user.role) {
+      console.error('LOG: Invalid session data, clearing');
+      sessionUtils.clearSession();
+      return null;
+    }
+
+    console.log('LOG: Session loaded for user:', parsed.user.name);
+    return parsed;
   } catch (error) {
-    console.error('Error loading session:', error);
+    console.error('LOG: Error loading session:', error);
+    sessionUtils.clearSession();
     return null;
   }
 };
@@ -147,10 +181,9 @@ const loadSession = () => {
 const clearSession = () => {
   try {
     localStorage.removeItem(SESSION_KEY);
-    return true;
+    console.log('LOG: Session cleared');
   } catch (error) {
-    console.error('Error clearing session:', error);
-    return false;
+    console.error('LOG: Error clearing session:', error);
   }
 };
 
@@ -182,27 +215,17 @@ const needsRegistration = (isConnected, userFromBackend) => {
 
 // Get redirect path based on user role with better error handling
 const getRedirectPath = (user) => {
-  if (!user) {
-    console.log('LOG: Invalid user for redirect:', user);
-    return '/login';
-  }
-
-  // Ensure user has a role before trying to normalize it
-  if (user.role === undefined || user.role === null) {
-    console.error('LOG: User role is undefined/null, cannot determine redirect path. User:', user);
-    return '/login'; // Force re-login if role is missing
-  }
-
-  const role = normalizeUserRole(user.role);
-  console.log('LOG: Getting redirect path for role:', role);
+  if (!user || !user.role) return '/login';
   
-  if (role === 'Doctor') {
-    return '/doctor-dashboard';
-  } else if (role === 'Patient') {
-    return '/patient-dashboard';
-  } else {
-    console.warn('LOG: Unknown role for redirect:', role);
-    return '/patient-dashboard'; // Default fallback
+  const role = typeof user.role === 'string' ? user.role : 
+               (user.role.Doctor !== undefined ? 'Doctor' : 
+                user.role.Admin !== undefined ? 'Admin' : 'Patient');
+  
+  switch (role) {
+    case 'Doctor': return '/doctor';
+    case 'Admin': return '/admin';
+    case 'Patient': return '/patient';
+    default: return '/patient';
   }
 };
 

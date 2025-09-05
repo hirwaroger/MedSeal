@@ -20,6 +20,7 @@ function Register({ showAlert }) {
   const [formVisible, setFormVisible] = useState(false);
   const [registrationStatus, setRegistrationStatus] = useState('idle'); // 'idle', 'checking', 'exists', 'registering', 'success', 'failed'
   const [registrationError, setRegistrationError] = useState(null);
+  const [adminExists, setAdminExists] = useState(null); // null = checking, true = exists, false = doesn't exist
 
   // Enhanced debug logging for entire registration process
   console.log("LOG: Register component render - State:", { 
@@ -32,8 +33,26 @@ function Register({ showAlert }) {
     formVisible,
     connectionProcessing,
     loading,
-    hasUser: !!user
+    hasUser: !!user,
+    adminExists
   });
+
+  // Check if admin exists when component mounts
+  useEffect(() => {
+    const checkAdminExists = async () => {
+      if (authenticatedActor && adminExists === null) {
+        try {
+          const exists = await authenticatedActor.admin_exists();
+          console.log('LOG: Admin exists check result:', exists);
+          setAdminExists(exists);
+        } catch (error) {
+          console.error('LOG: Error checking admin exists:', error);
+          setAdminExists(true); // Default to true if check fails
+        }
+      }
+    };
+    checkAdminExists();
+  }, [authenticatedActor, adminExists]);
 
   // Process status logging on mount and when wallet connection changes
   useEffect(() => {
@@ -482,6 +501,9 @@ function Register({ showAlert }) {
                             <option value="">Select your role</option>
                             <option value="Doctor">Healthcare Provider</option>
                             <option value="Patient">Patient</option>
+                            {adminExists === false && (
+                              <option value="Admin">System Administrator (First Time Setup)</option>
+                            )}
                           </select>
                           {errors.role && <p className="mt-1 text-xs text-red-600">{errors.role}</p>}
                         </div>

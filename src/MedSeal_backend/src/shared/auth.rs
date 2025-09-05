@@ -16,6 +16,19 @@ pub fn register_user(request: RegisterUserRequest) -> Result<User> {
         return Err("Invalid email address".to_string());
     }
 
+    // Check if this is first admin creation
+    let verification_status = match request.role {
+        UserRole::Admin => {
+            if storage::admin_exists() {
+                return Err("Admin already exists".to_string());
+            }
+            storage::set_admin_exists(true);
+            VerificationStatus::Approved
+        },
+        UserRole::Doctor => VerificationStatus::Pending,
+        UserRole::Patient => VerificationStatus::NotRequired,
+    };
+
     let user = User {
         id: utils::generate_user_id(),
         name: request.name,
@@ -24,6 +37,11 @@ pub fn register_user(request: RegisterUserRequest) -> Result<User> {
         license_number: request.license_number,
         user_principal: caller_principal.clone(),
         created_at: utils::get_current_timestamp(),
+        verification_status,
+        verification_request: None,
+        last_active: Some(utils::get_current_timestamp()),
+        total_prescriptions: 0,
+        total_medicines: 0,
     };
 
     storage::store_user(user.clone());
@@ -40,6 +58,19 @@ pub fn register_user_with_principal(request: RegisterUserWithPrincipalRequest) -
         return Err("Invalid email address".to_string());
     }
 
+    // Check if this is first admin creation
+    let verification_status = match request.role {
+        UserRole::Admin => {
+            if storage::admin_exists() {
+                return Err("Admin already exists".to_string());
+            }
+            storage::set_admin_exists(true);
+            VerificationStatus::Approved
+        },
+        UserRole::Doctor => VerificationStatus::Pending,
+        UserRole::Patient => VerificationStatus::NotRequired,
+    };
+
     let user = User {
         id: utils::generate_user_id(),
         name: request.name,
@@ -48,6 +79,11 @@ pub fn register_user_with_principal(request: RegisterUserWithPrincipalRequest) -
         license_number: request.license_number,
         user_principal: request.user_principal.clone(),
         created_at: utils::get_current_timestamp(),
+        verification_status,
+        verification_request: None,
+        last_active: Some(utils::get_current_timestamp()),
+        total_prescriptions: 0,
+        total_medicines: 0,
     };
 
     storage::store_user(user.clone());
@@ -87,7 +123,7 @@ pub fn principal_has_account(principal: String) -> bool {
 }
 
 #[ic_cdk::query]
-pub fn list_user_principals() -> Vec<(String, String, String)> {
+pub fn list_user_principals() -> Vec<PrincipalEntry> {
     storage::list_user_principals()
 }
 
@@ -95,9 +131,12 @@ pub fn list_user_principals() -> Vec<(String, String, String)> {
 pub fn authenticate_user(email: String, license_number: String) -> Result<User> {
     let users = storage::list_user_principals();
 
-    for (_principal, user_id, user_email) in users {
-        if user_email == email {
-            if let Some(user) = storage::get_user(&user_id) {
+    for entry in users.iter() {
+        let user_id = &entry.user_id;
+        let user_email = &entry.email;
+
+        if user_email == &email {
+            if let Some(user) = storage::get_user(user_id) {
                 if user.license_number == license_number {
                     return Ok(user);
                 }
@@ -116,11 +155,11 @@ pub fn get_current_caller() -> String {
 
 #[ic_cdk::query]
 pub fn get_principal_mapping_debug() -> Vec<(String, String)> {
-    storage::list_user_principals().into_iter().map(|(p, id, _)| (p, id)).collect()
+    storage::list_user_principals().into_iter().map(|e| (e.principal_ent, e.user_id)).collect()
 }
 
 #[ic_cdk::query]
-pub fn debug_all_users() -> Vec<(String, String, String)> {
+pub fn debug_all_users() -> Vec<PrincipalEntry> {
     storage::list_user_principals()
 }
 
@@ -133,4 +172,9 @@ pub fn generate_user_id() -> String {
 #[ic_cdk::query]
 pub fn test_backend_connection() -> String {
     "Backend connection successful".to_string()
+}
+
+#[ic_cdk::query]
+pub fn admin_exists() -> bool {
+    storage::admin_exists()
 }

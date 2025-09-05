@@ -13,6 +13,12 @@ thread_local! {
     // Prescription storage
     static PRESCRIPTIONS: RefCell<HashMap<String, Prescription>> = RefCell::new(HashMap::new());
     static PRESCRIPTION_CODES: RefCell<HashMap<String, String>> = RefCell::new(HashMap::new());
+    
+    // Verification storage
+    static VERIFICATION_REQUESTS: RefCell<HashMap<String, VerificationRequest>> = RefCell::new(HashMap::new());
+    
+    // Admin settings
+    static ADMIN_EXISTS: RefCell<bool> = RefCell::new(false);
 }
 
 // User storage functions
@@ -48,11 +54,24 @@ pub fn principal_has_account(principal: &str) -> bool {
     })
 }
 
-pub fn list_user_principals() -> Vec<(String, String, String)> {
-    USERS.with(|users| {
-        users.borrow().values().map(|user| {
-            (user.user_principal.clone(), user.id.clone(), user.email.clone())
-        }).collect()
+pub fn list_user_principals() -> Vec<crate::shared::types::PrincipalEntry> {
+    PRINCIPAL_TO_USER.with(|principal_to_user| {
+        USERS.with(|users| {
+            let principal_map = principal_to_user.borrow();
+            let users_map = users.borrow();
+            
+            principal_map.iter()
+                .filter_map(|(principal, user_id)| {
+                    users_map.get(user_id).map(|user| {
+                        crate::shared::types::PrincipalEntry {
+                            principal_ent: principal.clone(),
+                            user_id: user_id.clone(),
+                            email: user.email.clone(),
+                        }
+                    })
+                })
+                .collect()
+        })
     })
 }
 
@@ -144,6 +163,115 @@ pub fn update_prescription_access(prescription_id: &str, accessed_at: u64, patie
                 prescription.patient_principal = Some(principal);
             }
             prescriptions_map.insert(prescription_id.to_string(), prescription);
+            true
+        } else {
+            false
+        }
+    })
+}
+
+// Admin functions
+pub fn admin_exists() -> bool {
+    ADMIN_EXISTS.with(|exists| *exists.borrow())
+}
+
+pub fn set_admin_exists(exists: bool) {
+    ADMIN_EXISTS.with(|admin_flag| {
+        *admin_flag.borrow_mut() = exists;
+    });
+}
+
+pub fn get_all_doctors() -> Vec<User> {
+    USERS.with(|users| {
+        users.borrow().values()
+            .filter(|user| matches!(user.role, UserRole::Doctor))
+            .cloned()
+            .collect()
+    })
+}
+
+pub fn get_all_patients() -> Vec<User> {
+    USERS.with(|users| {
+        users.borrow().values()
+            .filter(|user| matches!(user.role, UserRole::Patient))
+            .cloned()
+            .collect()
+    })
+}
+
+pub fn update_user_activity(user_id: &str, timestamp: u64) -> bool {
+    USERS.with(|users| {
+        let mut users_map = users.borrow_mut();
+        if let Some(mut user) = users_map.get(user_id).cloned() {
+            user.last_active = Some(timestamp);
+            users_map.insert(user_id.to_string(), user);
+            true
+        } else {
+            false
+        }
+    })
+}
+
+pub fn update_user_stats(user_id: &str, prescription_count: u64, medicine_count: u64) -> bool {
+    USERS.with(|users| {
+        let mut users_map = users.borrow_mut();
+        if let Some(mut user) = users_map.get(user_id).cloned() {
+            user.total_prescriptions = prescription_count;
+            user.total_medicines = medicine_count;
+            users_map.insert(user_id.to_string(), user);
+            true
+        } else {
+            false
+        }
+    })
+}
+
+// Verification request functions
+pub fn store_verification_request(request: VerificationRequest) {
+    VERIFICATION_REQUESTS.with(|requests| {
+        requests.borrow_mut().insert(request.id.clone(), request);
+    });
+}
+
+pub fn get_verification_request(request_id: &str) -> Option<VerificationRequest> {
+    VERIFICATION_REQUESTS.with(|requests| {
+        requests.borrow().get(request_id).cloned()
+    })
+}
+
+pub fn get_all_verification_requests() -> Vec<VerificationRequest> {
+    VERIFICATION_REQUESTS.with(|requests| {
+        requests.borrow().values().cloned().collect()
+    })
+}
+
+pub fn get_pending_verification_requests() -> Vec<VerificationRequest> {
+    VERIFICATION_REQUESTS.with(|requests| {
+        requests.borrow().values()
+            .filter(|req| matches!(req.status, VerificationStatus::Pending))
+            .cloned()
+            .collect()
+    })
+}
+
+pub fn update_verification_request(request_id: &str, updated_request: VerificationRequest) -> bool {
+    VERIFICATION_REQUESTS.with(|requests| {
+        let mut requests_map = requests.borrow_mut();
+        if requests_map.contains_key(request_id) {
+            requests_map.insert(request_id.to_string(), updated_request);
+            true
+        } else {
+            false
+        }
+    })
+}
+
+pub fn update_user_verification_status(user_id: &str, status: VerificationStatus) -> bool {
+    USERS.with(|users| {
+        let mut users_map = users.borrow_mut();
+        if let Some(mut user) = users_map.get(user_id).cloned() {
+            user.verification_status = status;
+            users_map.insert(user_id.to_string(), user);
             true
         } else {
             false

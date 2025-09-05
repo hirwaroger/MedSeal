@@ -1,163 +1,121 @@
-type UserRole = variant {
-    Doctor;
-    Patient;
+type UserRole = variant { Doctor; Patient; Admin; };
+
+type VerificationStatus = variant { Pending; Approved; Rejected; NotRequired; };
+
+type PrescriptionMedicine = record { name: text; dose: text; instructions: text; };
+
+type Medicine = record { id: text; name: text; description: text; created_at: nat64; };
+
+type Prescription = record {
+  id: text;
+  code: text;
+  patient_name: text;
+  patient_contact: text;
+  patient_principal: opt text;
+  medicines: vec PrescriptionMedicine;
+  additional_notes: text;
+  created_at: nat64;
+  accessed_at: opt nat64;
+};
+
+type VerificationRequest = record {
+  id: text;
+  doctor_id: text;
+  institution_name: text;
+  institution_website: text;
+  license_authority: text;
+  license_authority_website: text;
+  medical_license_number: text;
+  additional_documents: vec text;
+  submitted_at: nat64;
+  processed_at: opt nat64;
+  processed_by: opt text;
+  admin_notes: opt text;
+  status: VerificationStatus;
 };
 
 type User = record {
-    id: text;
-    name: text;
-    email: text;
-    role: UserRole;
-    license_number: text;
-    user_principal: text; // Ensure this field is present and used
-    created_at: nat64;
+  id: text;
+  name: text;
+  email: text;
+  role: UserRole;
+  license_number: text;
+  user_principal: text;
+  created_at: nat64;
+  verification_status: VerificationStatus;
+  verification_request: opt VerificationRequest;
+  last_active: opt nat64;
+  total_prescriptions: nat64;
+  total_medicines: nat64;
 };
 
-type Medicine = record {
-    id: text;
-    name: text;
-    dosage: text;
-    frequency: text;
-    duration: text;
-    side_effects: text;
-    guide_text: text; // Changed to required
-    guide_source: text; // Changed to required
-    created_by: text;
-    created_at: nat64;
-    is_active: bool;
+type SubmitVerificationRequest = record {
+  institution_name: text;
+  institution_website: text;
+  license_authority: text;
+  license_authority_website: text;
+  medical_license_number: text;
+  additional_documents: vec text;
 };
 
-type PrescriptionMedicine = record {
-    medicine_id: text;
-    custom_dosage: opt text;
-    custom_instructions: text;
+type ProcessVerificationRequest = record { verification_id: text; status: VerificationStatus; admin_notes: opt text };
+
+type UserStats = record {
+  user_id: text; name: text; email: text; role: UserRole; verification_status: VerificationStatus; last_active: opt nat64; total_prescriptions: nat64; total_medicines: nat64; created_at: nat64;
 };
 
-type Prescription = record {
-    id: text;
-    prescription_code: text;
-    doctor_id: text;
-    patient_name: text;
-    patient_contact: text;
-    medicines: vec PrescriptionMedicine;
-    additional_notes: text;
-    created_at: nat64;
-    accessed_at: opt nat64;
-    patient_principal: opt text; // NEW: principal who claimed the prescription
+type SystemOverview = record {
+  total_doctors: nat64; total_patients: nat64; verified_doctors: nat64; unverified_doctors: nat64; pending_verifications: nat64; total_prescriptions: nat64; total_medicines: nat64;
 };
 
-type RegisterUserRequest = record {
-    name: text;
-    email: text;
-    role: UserRole;
-    license_number: text;
-};
+type VerificationStatusInfo = record { doctor_id: text; doctor_name: text; verification_status: VerificationStatus; verification_request: opt VerificationRequest };
 
-type RegisterUserWithPrincipalRequest = record {
-    name: text;
-    email: text;
-    role: UserRole;
-    license_number: text;
-    user_principal: text;
-};
+type PrincipalEntry = record { principal_ent : text; user_id : text; email : text };
 
-type CreateMedicineRequest = record {
-    name: text;
-    dosage: text;
-    frequency: text;
-    duration: text;
-    side_effects: text;
-    guide_text: text; // Changed to required
-    guide_source: text; // Changed to required
-};
-
-type CreatePrescriptionRequest = record {
-    patient_name: text;
-    patient_contact: text;
-    medicines: vec PrescriptionMedicine;
-    additional_notes: text;
-};
-
-type Result_User = variant {
-    Ok: User;
-    Err: text;
-};
-
-type Result_Medicine = variant {
-    Ok: Medicine;
-    Err: text;
-};
-
-type Result_Prescription = variant {
-    Ok: Prescription;
-    Err: text;
-};
-
-type Result_String = variant {
-    Ok: text;
-    Err: text;
-};
-
-type ChatMessage = record {
-    role: text;
-    content: text;
-};
-
-type GeneralChatContext = record {
-    user_type: text;
-};
-
-type PrescriptionChatContext = record {
-    user_type: text;
-    prescription_data: text;
-};
-
-type MedicineChatContext = record {
-    user_type: text;
-    medicine_data: text;
-};
+// Result types
+type Result_User = variant { Ok: User; Err: text };
+type Result_Medicine = variant { Ok: Medicine; Err: text };
+type Result_Medicines = variant { Ok: vec Medicine; Err: text };
+type Result_Text = variant { Ok: text; Err: text };
+type Result_Prescription = variant { Ok: Prescription; Err: text };
+type Result_VecUser = variant { Ok: vec User; Err: text };
+type Result_UserStats = variant { Ok: UserStats; Err: text };
+type Result_SystemOverview = variant { Ok: SystemOverview; Err: text };
+type Result_VecVerification = variant { Ok: vec VerificationRequest; Err: text };
+type Result_Verification = variant { Ok: VerificationRequest; Err: text };
+type Result_VerificationStatusInfo = variant { Ok: VerificationStatusInfo; Err: text };
 
 service : {
-    // User Management
-    "register_user": (RegisterUserRequest) -> (Result_User);
-    "register_user_with_principal": (RegisterUserWithPrincipalRequest) -> (Result_User);
-    "register_user_simple": (text, text, UserRole, text) -> (Result_User);
-    "get_user": (text) -> (opt User) query;
-    "get_user_by_principal": (text) -> (Result_User) query;
-    "get_user_by_principal_detailed": (text) -> (Result_User) query;
-    "principal_has_account": (text) -> (bool) query;
-    "list_user_principals": () -> (vec record { text; text; text }) query; // (principal, user_id, email)
-    "authenticate_user": (text, text) -> (Result_User) query;
-    
-    // Medicine Repository (Doctors only)
-    "add_medicine": (CreateMedicineRequest) -> (Result_Medicine);
-    "get_doctor_medicines": (text) -> (vec Medicine) query;
-    "get_medicine": (text) -> (opt Medicine) query;
-    "get_medicine_guide_text": (text) -> (opt text) query;
-    "update_medicine": (text, CreateMedicineRequest) -> (Result_Medicine);
-    "toggle_medicine_status": (text) -> (Result_Medicine);
-    
-    // Prescription Management
-    "create_prescription": (CreatePrescriptionRequest) -> (Result_String);
-    "get_prescription": (text, text) -> (Result_Prescription) query;
-    "get_doctor_prescriptions": (text) -> (vec Prescription) query;
-    
-    // Debug and test methods
-    "test_backend_connection": () -> (text) query;
-    "get_all_medicines_debug": () -> (vec Medicine) query;
-    "get_current_caller": () -> (text) query;
-    "get_principal_mapping_debug": () -> (vec record { text; text }) query;
-    "debug_get_prescription_with_medicines": (text) -> (Result_String) query;
-    "debug_all_users": () -> (vec record { text; text; text }) query;
-    
-    // Utility
-    "generate_user_id": () -> (text);
-    "greet": (text) -> (text) query;
-    
-    // AI Assistant Functions - Separated by context
-    "chat_general": (vec ChatMessage, GeneralChatContext) -> (Result_String);
-    "chat_prescription": (vec ChatMessage, PrescriptionChatContext) -> (Result_String);
-    "chat_medicine": (vec ChatMessage, MedicineChatContext) -> (Result_String);
-    "get_prescription_ai_help": (text, text, text) -> (Result_String);
-    "get_medicine_ai_help": (text) -> (Result_String);
-}
+  // User functions
+  register_user: (record { name: text; email: text; role: UserRole; license_number: text }) -> (Result_User);
+  register_user_with_principal: (record { name: text; email: text; role: UserRole; license_number: text; user_principal: text }) -> (Result_User);
+  register_user_simple: (text, text, UserRole, text) -> (Result_User);
+  get_user: (text) -> (opt User) query;
+  list_user_principals: () -> (vec PrincipalEntry) query; // (principal_ent, user_id, email)
+
+  // Prescriptions / Medicines
+  create_prescription: (Prescription) -> (Result_Text);
+  get_prescription: (text) -> (opt Prescription) query;
+  get_prescription_by_code: (text) -> (opt Prescription) query;
+  get_all_medicines: () -> (vec Medicine) query;
+
+  // Admin functions
+  admin_exists: () -> (bool) query;
+  get_all_doctors: () -> (Result_VecUser) query;
+  get_all_patients: () -> (Result_VecUser) query;
+  get_user_stats: (text) -> (Result_UserStats) query;
+  get_system_overview: () -> (Result_SystemOverview) query;
+
+  // Verification functions
+  submit_verification_request: (SubmitVerificationRequest) -> (Result_Text);
+  get_all_verification_requests: () -> (Result_VecVerification) query;
+  get_pending_verification_requests: () -> (Result_VecVerification) query;
+  get_verification_request: (text) -> (Result_Verification) query;
+  process_verification_request: (ProcessVerificationRequest) -> (Result_Text);
+  get_doctor_verification_status: (text) -> (Result_VerificationStatusInfo) query;
+
+  // Utilities
+  greet: (text) -> (text) query;
+  icrc10_supported_standards: () -> (vec text) query;
+  icrc28_trusted_origins: () -> (text);
+};
