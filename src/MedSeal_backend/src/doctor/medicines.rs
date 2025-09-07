@@ -1,7 +1,7 @@
-use ic_cdk::api::caller;
 use crate::shared::types::*;
 use crate::shared::storage as storage;
 use crate::shared::utils as utils;
+use ic_cdk::api::caller;
 
 #[ic_cdk::update]
 pub fn add_medicine(request: CreateMedicineRequest) -> Result<Medicine> {
@@ -18,17 +18,20 @@ pub fn add_medicine(request: CreateMedicineRequest) -> Result<Medicine> {
         _ => return Err("Only doctors can add medicines".to_string()),
     }
 
+    let medicine_id = utils::generate_medicine_id();
     let medicine = Medicine {
-        id: utils::generate_medicine_id(),
-        name: request.name,
-        dosage: request.dosage,
-        frequency: request.frequency,
-        duration: request.duration,
-        side_effects: request.side_effects,
-        guide_text: request.guide_text,
-        guide_source: request.guide_source,
-        created_by: user.id.clone(),
+        id: medicine_id.clone(),
+        name: request.name.clone(),
+        dosage: request.dosage.clone(),
+        frequency: request.frequency.clone(),
+        duration: request.duration.clone(),
+        side_effects: request.side_effects.clone(),
+        guide_text: request.guide_text.clone(),
+        guide_source: request.guide_source.clone(),
+        description: request.guide_text.clone(), // simple description source
         created_at: utils::get_current_timestamp(),
+        created_by: user.id.clone(),
+        doctor_id: user.id.clone(),
         is_active: true,
     };
 
@@ -39,6 +42,11 @@ pub fn add_medicine(request: CreateMedicineRequest) -> Result<Medicine> {
 #[ic_cdk::query]
 pub fn get_doctor_medicines(doctor_id: String) -> Vec<Medicine> {
     storage::get_doctor_medicines(&doctor_id)
+}
+
+#[ic_cdk::query]
+pub fn get_doctor_prescriptions(doctor_id: String) -> Vec<Prescription> {
+    storage::get_doctor_prescriptions(&doctor_id)
 }
 
 #[ic_cdk::query]
@@ -78,16 +86,18 @@ pub fn update_medicine(medicine_id: String, request: CreateMedicineRequest) -> R
     }
 
     let updated_medicine = Medicine {
-        id: medicine_id.clone(),
-        name: request.name,
-        dosage: request.dosage,
-        frequency: request.frequency,
-        duration: request.duration,
-        side_effects: request.side_effects,
-        guide_text: request.guide_text,
-        guide_source: request.guide_source,
-        created_by: existing_medicine.created_by,
+        id: existing_medicine.id.clone(),
+        name: request.name.clone(),
+        dosage: request.dosage.clone(),
+        frequency: request.frequency.clone(),
+        duration: request.duration.clone(),
+        side_effects: request.side_effects.clone(),
+        guide_text: request.guide_text.clone(),
+        guide_source: request.guide_source.clone(),
+        description: existing_medicine.description.clone(),
         created_at: existing_medicine.created_at,
+        created_by: existing_medicine.created_by.clone(),
+        doctor_id: existing_medicine.doctor_id.clone(),
         is_active: existing_medicine.is_active,
     };
 

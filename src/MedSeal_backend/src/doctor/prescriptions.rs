@@ -43,10 +43,7 @@ pub fn create_prescription(request: CreatePrescriptionRequest) -> Result<String>
     Ok(prescription_code)
 }
 
-#[ic_cdk::query]
-pub fn get_doctor_prescriptions(doctor_id: String) -> Vec<Prescription> {
-    storage::get_doctor_prescriptions(&doctor_id)
-}
+// use ic_cdk::api::caller;
 
 #[ic_cdk::query]
 pub fn debug_get_prescription_with_medicines(prescription_code: String) -> Result<String> {

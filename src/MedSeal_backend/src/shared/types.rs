@@ -58,8 +58,10 @@ pub struct Medicine {
     pub side_effects: String,
     pub guide_text: String,
     pub guide_source: String,
-    pub created_by: String,
+    pub description: String,
     pub created_at: u64,
+    pub created_by: String,
+    pub doctor_id: String,
     pub is_active: bool,
 }
 
@@ -74,14 +76,14 @@ pub struct PrescriptionMedicine {
 pub struct Prescription {
     pub id: String,
     pub prescription_code: String,
-    pub doctor_id: String,
     pub patient_name: String,
     pub patient_contact: String,
+    pub patient_principal: Option<String>,
     pub medicines: Vec<PrescriptionMedicine>,
     pub additional_notes: String,
     pub created_at: u64,
     pub accessed_at: Option<u64>,
-    pub patient_principal: Option<String>,
+    pub doctor_id: String,
 }
 
 // Request structures
@@ -135,7 +137,7 @@ pub struct SubmitVerificationRequest {
 pub struct ProcessVerificationRequest {
     pub verification_id: String,
     pub status: VerificationStatus,
-    pub admin_notes: Option<String>,
+    pub admin_notes: Vec<String>,
 }
 
 // Result types

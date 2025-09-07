@@ -2,7 +2,6 @@ use ic_cdk::api::caller;
 use crate::shared::types::*;
 use crate::shared::storage as storage;
 use crate::shared::utils as utils;
-use candid::{CandidType};
 
 // Helper function to verify admin role
 fn verify_admin() -> Result<User> {
@@ -112,7 +111,8 @@ pub fn process_verification_request(request: ProcessVerificationRequest) -> Resu
     verification_request.status = request.status.clone();
     verification_request.processed_at = Some(utils::get_current_timestamp());
     verification_request.processed_by = Some(_admin.id.clone());
-    verification_request.admin_notes = request.admin_notes;
+    // Map Vec<String> -> Option<String>
+    verification_request.admin_notes = request.admin_notes.first().cloned();
     
     // Store updated request
     storage::update_verification_request(&request.verification_id, verification_request.clone());

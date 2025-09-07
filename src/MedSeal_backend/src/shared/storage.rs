@@ -90,8 +90,9 @@ pub fn get_medicine(medicine_id: &str) -> Option<Medicine> {
 
 pub fn get_doctor_medicines(doctor_id: &str) -> Vec<Medicine> {
     MEDICINES.with(|medicines| {
-        medicines.borrow().values()
-            .filter(|medicine| medicine.created_by == doctor_id)
+        medicines.borrow()
+            .values()
+            .filter(|medicine| medicine.doctor_id == doctor_id)
             .cloned()
             .collect()
     })
@@ -147,7 +148,8 @@ pub fn get_prescription(prescription_id: &str) -> Option<Prescription> {
 
 pub fn get_doctor_prescriptions(doctor_id: &str) -> Vec<Prescription> {
     PRESCRIPTIONS.with(|prescriptions| {
-        prescriptions.borrow().values()
+        prescriptions.borrow()
+            .values()
             .filter(|prescription| prescription.doctor_id == doctor_id)
             .cloned()
             .collect()

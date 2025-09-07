@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useMedicine } from '../features/doctor/hooks/useMedicine';
 import { usePrescription } from '../features/doctor/hooks/usePrescription';
+import { useAuth } from '../hooks/useAuth';
 import DashboardOverview from '../features/doctor/components/DashboardOverview';
 import MedicineRepository from '../features/doctor/components/MedicineRepository';
 import AddMedicineForm from '../features/doctor/components/AddMedicineForm';
 import PrescriptionForm from '../features/doctor/components/PrescriptionForm';
 import PrescriptionHistory from '../features/doctor/components/PrescriptionHistory';
+import DoctorVerificationForm from './doctor/DoctorVerificationForm';
 import AIChat from './AIChat';
 import { useFavicon } from './useFavicon';
 
@@ -17,6 +19,8 @@ function DoctorDashboard({ user, showAlert }) {
   const [showAIChat, setShowAIChat] = useState(false);
   const [aiChatContext, setAiChatContext] = useState(null);
   const [showAIWidget, setShowAIWidget] = useState(false);
+
+  const { authenticatedActor } = useAuth();
 
   const {
     medicines,
@@ -34,6 +38,28 @@ function DoctorDashboard({ user, showAlert }) {
     removeMedicineFromSelection,
     updateSelectedMedicine
   } = usePrescription(user, showAlert);
+
+  // Handle verification request submission
+  const handleVerificationSubmit = async (verificationData) => {
+    if (!authenticatedActor) {
+      showAlert('error', 'Backend connection not available');
+      return;
+    }
+
+    try {
+      const result = await authenticatedActor.submit_verification_request(verificationData);
+      
+      if ('Ok' in result) {
+        showAlert('success', 'Verification request submitted successfully! You will be notified once reviewed.');
+        setActiveTab('overview'); // Redirect to overview
+      } else {
+        showAlert('error', `Failed to submit verification request: ${result.Err}`);
+      }
+    } catch (error) {
+      console.error('Error submitting verification request:', error);
+      showAlert('error', `Error submitting verification request: ${error.message}`);
+    }
+  };
 
   const viewMedicineGuide = (medicine) => {
     setGuideDialog({ open: true, medicine });
@@ -90,12 +116,29 @@ function DoctorDashboard({ user, showAlert }) {
     setAiChatContext(null);
   };
 
+  // Enhanced sidebar items with verification status
+  const getVerificationLabel = () => {
+    if (!user.verification_status) return 'Request Verification';
+    
+    switch (user.verification_status) {
+      case 'Pending': return 'Verification Pending';
+      case 'Approved': return 'Verified ✓';
+      case 'Rejected': return 'Verification Rejected';
+      default: return 'Request Verification';
+    }
+  };
+
   const sidebarItems = [
     { id: 'overview', icon: '📊', label: 'Dashboard Overview' },
     { id: 'medicines', icon: '💊', label: `Medicine Repository (${medicines.length})` },
     { id: 'add-medicine', icon: '➕', label: 'Add New Medicine' },
     { id: 'prescriptions', icon: '📋', label: 'Create Prescription' },
     { id: 'history', icon: '📚', label: `Prescription History (${prescriptions.length})` },
+    { 
+      id: 'verification', 
+      icon: user.verification_status === 'Approved' ? '✅' : user.verification_status === 'Pending' ? '⏳' : '🔍', 
+      label: getVerificationLabel() 
+    },
   ];
 
   return (
@@ -116,6 +159,19 @@ function DoctorDashboard({ user, showAlert }) {
               <div>
                 <h2 className="font-semibold">Dr. {user.name}</h2>
                 <p className="text-sm text-blue-100">License: {user.license_number}</p>
+                {user.verification_status && (
+                  <p className={`text-xs mt-1 ${
+                    user.verification_status === 'Approved' ? 'text-green-200' :
+                    user.verification_status === 'Pending' ? 'text-yellow-200' :
+                    user.verification_status === 'Rejected' ? 'text-red-200' :
+                    'text-blue-200'
+                  }`}>
+                    {user.verification_status === 'Approved' ? '✅ Verified' :
+                     user.verification_status === 'Pending' ? '⏳ Pending Verification' :
+                     user.verification_status === 'Rejected' ? '❌ Verification Rejected' :
+                     'Not Verified'}
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -154,13 +210,51 @@ function DoctorDashboard({ user, showAlert }) {
       
       {/* Main Content */}
       {activeTab === 'overview' && (
-        <DashboardOverview 
-          user={user}
-          medicines={medicines}
-          prescriptions={prescriptions}
-          onTabChange={setActiveTab}
-          onOpenAI={openAIAssistant}
-        />
+        <div className="flex-1 bg-gray-50 overflow-auto">
+          {/* Verification status banner */}
+          {user.verification_status !== 'Approved' && (
+            <div className="mx-6 mt-6 mb-0">
+              <div className={`rounded-lg border p-4 flex items-start gap-3 shadow-sm ${
+                user.verification_status === 'Pending' ? 'bg-yellow-50 border-yellow-300' :
+                user.verification_status === 'Rejected' ? 'bg-red-50 border-red-300' : 'bg-blue-50 border-blue-300'
+              }`}>
+                <span className="text-2xl">
+                  {user.verification_status === 'Pending' ? '⏳' : user.verification_status === 'Rejected' ? '❌' : '🔍'}
+                </span>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900 mb-1">
+                    {user.verification_status === 'Pending' && 'Your verification request is under review'}
+                    {user.verification_status === 'Rejected' && 'Your verification request was rejected'}
+                    {user.verification_status === 'NotRequired' && 'Verification not yet submitted'}
+                  </h3>
+                  {user.verification_status === 'Rejected' && user.verification_request && user.verification_request.admin_notes && (
+                    <p className="text-sm text-red-700 mb-1">
+                      Reason: {user.verification_request.admin_notes}
+                    </p>
+                  )}
+                  {user.verification_status !== 'Pending' && user.verification_status !== 'Approved' && (
+                    <button
+                      onClick={() => setActiveTab('verification')}
+                      className="inline-flex items-center text-sm font-medium text-blue-700 hover:text-blue-800"
+                    >
+                      {user.verification_status === 'Rejected' ? 'Resubmit verification request →' : 'Submit verification request →'}
+                    </button>
+                  )}
+                  {user.verification_status === 'Pending' && (
+                    <p className="text-sm text-yellow-800">You will be notified once an admin processes your request.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          <DashboardOverview 
+            user={user}
+            medicines={medicines}
+            prescriptions={prescriptions}
+            onTabChange={setActiveTab}
+            onOpenAI={openAIAssistant}
+          />
+        </div>
       )}
       
       {activeTab === 'medicines' && (
@@ -207,6 +301,16 @@ function DoctorDashboard({ user, showAlert }) {
           onTabChange={setActiveTab}
           showAlert={showAlert}
         />
+      )}
+
+      {activeTab === 'verification' && (
+        <div className="flex-1 bg-gray-50 overflow-auto">
+          <DoctorVerificationForm
+            user={user}
+            onSubmit={handleVerificationSubmit}
+            loading={medicineLoading || prescriptionLoading}
+          />
+        </div>
       )}
 
       {/* Medicine Guide Dialog */}

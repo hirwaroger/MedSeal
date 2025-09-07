@@ -4,11 +4,25 @@ type VerificationStatus = variant { Pending; Approved; Rejected; NotRequired; };
 
 type PrescriptionMedicine = record { name: text; dose: text; instructions: text; };
 
-type Medicine = record { id: text; name: text; description: text; created_at: nat64; };
+type Medicine = record {
+  id: text;
+  name: text;
+  dosage: text;
+  frequency: text;
+  duration: text;
+  side_effects: text;
+  guide_text: text;
+  guide_source: text;
+  description: text;
+  created_at: nat64;
+  created_by: text;
+  doctor_id: text;
+  is_active: bool;
+};
 
 type Prescription = record {
   id: text;
-  code: text;
+  prescription_code: text;
   patient_name: text;
   patient_contact: text;
   patient_principal: opt text;
@@ -16,6 +30,7 @@ type Prescription = record {
   additional_notes: text;
   created_at: nat64;
   accessed_at: opt nat64;
+  doctor_id: text;
 };
 
 type VerificationRequest = record {
@@ -58,7 +73,7 @@ type SubmitVerificationRequest = record {
   additional_documents: vec text;
 };
 
-type ProcessVerificationRequest = record { verification_id: text; status: VerificationStatus; admin_notes: opt text };
+type ProcessVerificationRequest = record { verification_id: text; status: VerificationStatus; admin_notes: vec text };
 
 type UserStats = record {
   user_id: text; name: text; email: text; role: UserRole; verification_status: VerificationStatus; last_active: opt nat64; total_prescriptions: nat64; total_medicines: nat64; created_at: nat64;
@@ -98,6 +113,10 @@ service : {
   get_prescription: (text) -> (opt Prescription) query;
   get_prescription_by_code: (text) -> (opt Prescription) query;
   get_all_medicines: () -> (vec Medicine) query;
+  get_doctor_medicines: (text) -> (vec Medicine) query;
+  get_doctor_prescriptions: (text) -> (vec Prescription) query;
+  add_medicine: (record { name: text; dosage: text; frequency: text; duration: text; side_effects: text; guide_text: text; guide_source: text }) -> (Result_Medicine);
+  toggle_medicine_status: (text) -> (Result_Medicine);
 
   // Admin functions
   admin_exists: () -> (bool) query;
