@@ -321,10 +321,11 @@ export const AuthProvider = ({ children }) => {
         };
       }
       
-      // Normalize role format for backend - handle Doctor, Admin, Patient
+      // Normalize role format for backend - handle Doctor, Admin, Patient, NGO
       let roleString = 'Patient';
       if (userData.role === 'Doctor') roleString = 'Doctor';
       else if (userData.role === 'Admin') roleString = 'Admin';
+      else if (userData.role === 'NGO') roleString = 'NGO';
       
       // Use register_user_with_principal for explicit principal handling
       try {
@@ -456,6 +457,49 @@ export const AuthProvider = ({ children }) => {
       setUserCheckPerformed(false);
       navigate('/login', { replace: true });
     }
+  };
+
+  const normalizeUserRole = (role) => {
+    console.log('LOG: Normalizing role:', role, 'Type:', typeof role);
+
+    if (role === undefined || role === null) {
+      console.warn('LOG: Role is undefined/null, defaulting to Patient');
+      return 'Patient';
+    }
+
+    if (typeof role === 'string') {
+      console.log('LOG: Role is already a string:', role);
+      return role;
+    }
+
+    if (typeof role === 'object' && role !== null) {
+      if (role.hasOwnProperty('Doctor')) {
+        console.log('LOG: Found Doctor role in object format');
+        return 'Doctor';
+      }
+      if (role.hasOwnProperty('Patient')) {
+        console.log('LOG: Found Patient role in object format');
+        return 'Patient';
+      }
+      if (role.hasOwnProperty('Admin')) {
+        console.log('LOG: Found Admin role in object format');
+        return 'Admin';
+      }
+      if (role.hasOwnProperty('NGO')) {
+        console.log('LOG: Found NGO role in object format');
+        return 'NGO';
+      }
+
+      if (role.role) {
+        console.log('LOG: Found nested role, recursing');
+        return normalizeUserRole(role.role);
+      }
+
+      console.warn('LOG: Role object exists but has no Doctor/Patient/NGO properties:', Object.keys(role));
+    }
+
+    console.warn('LOG: Unknown role format, defaulting to Patient. Role was:', role);
+    return 'Patient';
   };
 
   const value = {

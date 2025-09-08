@@ -1,4 +1,4 @@
-type UserRole = variant { Doctor; Patient; Admin; };
+type UserRole = variant { Doctor; Patient; Admin; NGO; };
 
 type VerificationStatus = variant { Pending; Approved; Rejected; NotRequired; };
 
@@ -87,6 +87,84 @@ type VerificationStatusInfo = record { doctor_id: text; doctor_name: text; verif
 
 type PrincipalEntry = record { principal_ent : text; user_id : text; email : text };
 
+type CaseStatus = variant { Pending; UnderReview; Approved; Rejected; Funded; Closed; };
+
+type CaseUrgency = variant { Low; Medium; High; Critical; };
+
+type PatientCase = record {
+  id: text;
+  patient_id: text;
+  patient_name: text;
+  patient_contact: text;
+  case_title: text;
+  case_description: text;
+  medical_condition: text;
+  required_amount: nat64;
+  supporting_documents: vec text;
+  urgency_level: CaseUrgency;
+  status: CaseStatus;
+  created_at: nat64;
+  reviewed_at: opt nat64;
+  reviewed_by: opt text;
+  admin_notes: opt text;
+};
+
+type ContributionPool = record {
+  id: text;
+  case_id: text;
+  ngo_id: text;
+  ngo_name: text;
+  target_amount: nat64;
+  current_amount: nat64;
+  contributors_count: nat64;
+  pool_title: text;
+  pool_description: text;
+  created_at: nat64;
+  deadline: opt nat64;
+  is_active: bool;
+  is_completed: bool;
+};
+
+type Contribution = record {
+  id: text;
+  pool_id: text;
+  contributor_principal: text;
+  amount: nat64;
+  message: opt text;
+  contributed_at: nat64;
+  is_anonymous: bool;
+};
+
+type SubmitCaseRequest = record {
+  case_title: text;
+  case_description: text;
+  medical_condition: text;
+  required_amount: nat64;
+  supporting_documents: vec text;
+  urgency_level: CaseUrgency;
+};
+
+type CreatePoolRequest = record {
+  case_id: text;
+  target_amount: nat64;
+  pool_title: text;
+  pool_description: text;
+  deadline_days: opt nat64;
+};
+
+type ContributeRequest = record {
+  pool_id: text;
+  amount: nat64;
+  message: opt text;
+  is_anonymous: bool;
+};
+
+type ProcessCaseRequest = record {
+  case_id: text;
+  status: CaseStatus;
+  admin_notes: opt text;
+};
+
 // Result types
 type Result_User = variant { Ok: User; Err: text };
 type Result_Medicine = variant { Ok: Medicine; Err: text };
@@ -99,6 +177,12 @@ type Result_SystemOverview = variant { Ok: SystemOverview; Err: text };
 type Result_VecVerification = variant { Ok: vec VerificationRequest; Err: text };
 type Result_Verification = variant { Ok: VerificationRequest; Err: text };
 type Result_VerificationStatusInfo = variant { Ok: VerificationStatusInfo; Err: text };
+type Result_PatientCase = variant { Ok: PatientCase; Err: text };
+type Result_VecPatientCase = variant { Ok: vec PatientCase; Err: text };
+type Result_ContributionPool = variant { Ok: ContributionPool; Err: text };
+type Result_VecContributionPool = variant { Ok: vec ContributionPool; Err: text };
+type Result_Contribution = variant { Ok: Contribution; Err: text };
+type Result_VecContribution = variant { Ok: vec Contribution; Err: text };
 
 service : {
   // User functions
@@ -133,8 +217,33 @@ service : {
   process_verification_request: (ProcessVerificationRequest) -> (Result_Text);
   get_doctor_verification_status: (text) -> (Result_VerificationStatusInfo) query;
 
+  // NGO and Case Management functions
+  submit_patient_case: (SubmitCaseRequest) -> (Result_Text);
+  get_all_patient_cases: () -> (Result_VecPatientCase) query;
+  get_pending_patient_cases: () -> (Result_VecPatientCase) query;
+  get_approved_patient_cases: () -> (Result_VecPatientCase) query;
+  get_patient_case: (text) -> (Result_PatientCase) query;
+  process_patient_case: (ProcessCaseRequest) -> (Result_Text);
+  
+  create_contribution_pool: (CreatePoolRequest) -> (Result_Text);
+  get_contribution_pools: () -> (Result_VecContributionPool) query;
+  get_active_contribution_pools: () -> (Result_VecContributionPool) query;
+  get_ngo_contribution_pools: (text) -> (Result_VecContributionPool) query;
+  get_contribution_pool: (text) -> (Result_ContributionPool) query;
+  
+  contribute_to_pool: (ContributeRequest) -> (Result_Text);
+  get_pool_contributions: (text) -> (Result_VecContribution) query;
+  get_user_contributions: () -> (Result_VecContribution) query;
+
   // Utilities
   greet: (text) -> (text) query;
   icrc10_supported_standards: () -> (vec text) query;
   icrc28_trusted_origins: () -> (text);
+
+  // AI Chat Functions
+  chat_general: (vec ChatMessage, GeneralChatContext) -> (Result_Text);
+  chat_prescription: (vec ChatMessage, PrescriptionChatContext) -> (Result_Text);
+  chat_medicine: (vec ChatMessage, MedicineChatContext) -> (Result_Text);
+  get_prescription_ai_help: (text, text, text) -> (Result_Text);
+  get_medicine_ai_help: (text) -> (Result_Text);
 };

@@ -55,6 +55,12 @@ const normalizeUserRole = (role) => {
       console.log('LOG: Found Admin role in object format');
       return 'Admin';
     }
+
+    // ngo 
+    if (role.hasOwnProperty('NGO')) {
+      console.log('LOG: Found NGO role in object format');
+      return 'NGO';
+    }
     
     // Handle nested format
     if (role.role) {
@@ -225,6 +231,7 @@ const getRedirectPath = (user) => {
     case 'Doctor': return '/doctor';
     case 'Admin': return '/admin';
     case 'Patient': return '/patient';
+    case 'NGO': return '/ngo';
     default: return '/patient';
   }
 };

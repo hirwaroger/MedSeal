@@ -8,6 +8,7 @@ import MedicationCard from '../features/patient/components/MedicationCard';
 import HealthWidget from '../features/patient/components/HealthWidget';
 import AIChat from './AIChat';
 import { useFavicon } from './useFavicon';
+import PatientCaseSubmission from '../features/patient/components/PatientCaseSubmission';
 
 function PatientDashboard({ user, showAlert }) {
   useFavicon('/favicon.png');
@@ -304,13 +305,14 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
     { id: 'access', icon: '📥', label: 'Access Prescription' },
     { id: 'history', icon: '📜', label: 'Prescription History' },
     { id: 'chat', icon: '💬', label: 'AI Chat' },
+    { id: 'case_submission', icon: '📋', label: 'Submit Case' },
   ];
-
   // Do NOT auto add prescription tab unless claimed
   if (hookPrescription && !sidebarItems.find(i => i.id === 'prescription')) {
     const prescriptionTab = { id: 'prescription', icon: '💊', label: 'Current Prescription' };
     sidebarItems.splice(1, 0, prescriptionTab);
   }
+
 
   const renderAccessContent = () => (
     <div className="flex-1 bg-gray-50 overflow-auto">
@@ -589,6 +591,14 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
     );
   };
 
+  const renderCaseSubmissionContent = () => (
+    <div className="flex-1 bg-gray-50 overflow-auto">
+      <div className="max-w-7xl mx-auto p-6">
+        <PatientCaseSubmission onSuccess={() => showAlert('success', 'Case submitted successfully!')} />
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
@@ -596,7 +606,6 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
         {/* Sidebar Header */}
         <div className="p-4 border-b border-blue-500/30">
           <div className="flex items-center gap-3">
-            {/* Replace generic avatar circle */}
             <img
               src="/favicon.png"
               alt="MedSeal"
@@ -634,6 +643,7 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
       {activeTab === 'prescription' && renderPrescriptionContent()}
       {activeTab === 'history' && renderHistoryContent()}
       {activeTab === 'chat' && renderChatContent()}
+      {activeTab === 'case_submission' && renderCaseSubmissionContent()}
 
       {/* AI Chat Modal */}
       {showAIChat && (
@@ -642,7 +652,6 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
           contextData={aiChatContext}
           onClose={closeAIAssistant}
           title="MedSeal Health Partner - Your Health Guide"
-          // set initialMode based on hook/selected prescription presence (was using undefined currentPrescription)
           initialMode={(hookPrescription || selectedPrescription) ? 'prescription' : 'general'}
         />
       )}

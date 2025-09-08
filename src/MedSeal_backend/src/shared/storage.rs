@@ -19,6 +19,13 @@ thread_local! {
     
     // Admin settings
     static ADMIN_EXISTS: RefCell<bool> = RefCell::new(false);
+
+    // Patient Case storage
+    static PATIENT_CASES: RefCell<HashMap<String, PatientCase>> = RefCell::new(HashMap::new());
+    
+    // Contribution storage
+    static CONTRIBUTION_POOLS: RefCell<HashMap<String, ContributionPool>> = RefCell::new(HashMap::new());
+    static CONTRIBUTIONS: RefCell<HashMap<String, Contribution>> = RefCell::new(HashMap::new());
 }
 
 // User storage functions
@@ -278,5 +285,121 @@ pub fn update_user_verification_status(user_id: &str, status: VerificationStatus
         } else {
             false
         }
+    })
+}
+
+// Patient Case functions
+pub fn store_patient_case(case: PatientCase) {
+    PATIENT_CASES.with(|cases| {
+        cases.borrow_mut().insert(case.id.clone(), case);
+    });
+}
+
+pub fn get_patient_case(case_id: &str) -> Option<PatientCase> {
+    PATIENT_CASES.with(|cases| {
+        cases.borrow().get(case_id).cloned()
+    })
+}
+
+pub fn update_patient_case(case_id: &str, case: PatientCase) {
+    PATIENT_CASES.with(|cases| {
+        cases.borrow_mut().insert(case_id.to_string(), case);
+    });
+}
+
+pub fn get_all_patient_cases() -> Vec<PatientCase> {
+    PATIENT_CASES.with(|cases| {
+        cases.borrow().values().cloned().collect()
+    })
+}
+
+pub fn get_patient_cases_by_status(status: CaseStatus) -> Vec<PatientCase> {
+    PATIENT_CASES.with(|cases| {
+        cases.borrow()
+            .values()
+            .filter(|case| std::mem::discriminant(&case.status) == std::mem::discriminant(&status))
+            .cloned()
+            .collect()
+    })
+}
+
+// Contribution Pool functions
+pub fn store_contribution_pool(pool: ContributionPool) {
+    CONTRIBUTION_POOLS.with(|pools| {
+        pools.borrow_mut().insert(pool.id.clone(), pool);
+    });
+}
+
+pub fn get_contribution_pool(pool_id: &str) -> Option<ContributionPool> {
+    CONTRIBUTION_POOLS.with(|pools| {
+        pools.borrow().get(pool_id).cloned()
+    })
+}
+
+pub fn update_contribution_pool(pool_id: &str, pool: ContributionPool) {
+    CONTRIBUTION_POOLS.with(|pools| {
+        pools.borrow_mut().insert(pool_id.to_string(), pool);
+    });
+}
+
+pub fn get_all_contribution_pools() -> Vec<ContributionPool> {
+    CONTRIBUTION_POOLS.with(|pools| {
+        pools.borrow().values().cloned().collect()
+    })
+}
+
+pub fn get_active_contribution_pools() -> Vec<ContributionPool> {
+    CONTRIBUTION_POOLS.with(|pools| {
+        pools.borrow()
+            .values()
+            .filter(|pool| pool.is_active && !pool.is_completed)
+            .cloned()
+            .collect()
+    })
+}
+
+pub fn get_contribution_pools_by_ngo(ngo_id: &str) -> Vec<ContributionPool> {
+    CONTRIBUTION_POOLS.with(|pools| {
+        pools.borrow()
+            .values()
+            .filter(|pool| pool.ngo_id == ngo_id)
+            .cloned()
+            .collect()
+    })
+}
+
+pub fn get_pool_by_case_id(case_id: &str) -> Option<ContributionPool> {
+    CONTRIBUTION_POOLS.with(|pools| {
+        pools.borrow()
+            .values()
+            .find(|pool| pool.case_id == case_id)
+            .cloned()
+    })
+}
+
+// Contribution functions
+pub fn store_contribution(contribution: Contribution) {
+    CONTRIBUTIONS.with(|contributions| {
+        contributions.borrow_mut().insert(contribution.id.clone(), contribution);
+    });
+}
+
+pub fn get_contributions_by_pool(pool_id: &str) -> Vec<Contribution> {
+    CONTRIBUTIONS.with(|contributions| {
+        contributions.borrow()
+            .values()
+            .filter(|contrib| contrib.pool_id == pool_id)
+            .cloned()
+            .collect()
+    })
+}
+
+pub fn get_contributions_by_user(user_principal: &str) -> Vec<Contribution> {
+    CONTRIBUTIONS.with(|contributions| {
+        contributions.borrow()
+            .values()
+            .filter(|contrib| contrib.contributor_principal == user_principal)
+            .cloned()
+            .collect()
     })
 }

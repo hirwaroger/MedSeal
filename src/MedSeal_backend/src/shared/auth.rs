@@ -18,15 +18,10 @@ pub fn register_user(request: RegisterUserRequest) -> Result<User> {
 
     // Check if this is first admin creation
     let verification_status = match request.role {
-        UserRole::Admin => {
-            if storage::admin_exists() {
-                return Err("Admin already exists".to_string());
-            }
-            storage::set_admin_exists(true);
-            VerificationStatus::Approved
-        },
         UserRole::Doctor => VerificationStatus::Pending,
+        UserRole::Admin => VerificationStatus::Approved,
         UserRole::Patient => VerificationStatus::NotRequired,
+        UserRole::NGO => VerificationStatus::Pending,
     };
 
     let user = User {
@@ -60,15 +55,10 @@ pub fn register_user_with_principal(request: RegisterUserWithPrincipalRequest) -
 
     // Check if this is first admin creation
     let verification_status = match request.role {
-        UserRole::Admin => {
-            if storage::admin_exists() {
-                return Err("Admin already exists".to_string());
-            }
-            storage::set_admin_exists(true);
-            VerificationStatus::Approved
-        },
         UserRole::Doctor => VerificationStatus::Pending,
+        UserRole::Admin => VerificationStatus::Approved,
         UserRole::Patient => VerificationStatus::NotRequired,
+        UserRole::NGO => VerificationStatus::Pending,
     };
 
     let user = User {

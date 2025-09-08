@@ -12,6 +12,7 @@ import RegisterPage from '../pages/RegisterPage';
 import DoctorDashboardPage from '../pages/DoctorDashboardPage';
 import PatientDashboardPage from '../pages/PatientDashboardPage';
 import AdminDashboardPage from '../pages/AdminDashboardPage';
+import NGODashboardPage from '../pages/NGODashboardPage';
 
 // Protected Route wrapper
 const ProtectedRoute = ({ children, requiredRole = null }) => {
@@ -35,7 +36,8 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
   if (requiredRole) {
     const userRole = typeof user.role === 'string' ? user.role : 
                     (user.role?.Doctor !== undefined ? 'Doctor' : 
-                     user.role?.Admin !== undefined ? 'Admin' : 'Patient');
+                     user.role?.Admin !== undefined ? 'Admin' : 
+                     user.role?.NGO !== undefined ? 'NGO' : 'Patient');
     
     if (userRole !== requiredRole) {
       return <Navigate to="/dashboard" replace />;
@@ -128,6 +130,14 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       
+      <Route path="/ngo/*" element={
+        <ProtectedRoute requiredRole="NGO">
+          <DashboardLayout>
+            <NGODashboardPage />
+          </DashboardLayout>
+        </ProtectedRoute>
+      } />
+      
       {/* Catch all route */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
@@ -142,11 +152,13 @@ const DashboardRedirect = () => {
   
   const userRole = typeof user.role === 'string' ? user.role : 
                   (user.role?.Doctor !== undefined ? 'Doctor' : 
-                   user.role?.Admin !== undefined ? 'Admin' : 'Patient');
+                   user.role?.Admin !== undefined ? 'Admin' : 
+                   user.role?.NGO !== undefined ? 'NGO' : 'Patient');
   
   return <Navigate to={
     userRole === 'Doctor' ? '/doctor' : 
     userRole === 'Admin' ? '/admin' : 
+    userRole === 'NGO' ? '/ngo' :
     '/patient'
   } replace />;
 };

@@ -1,19 +1,20 @@
 use candid::{CandidType, Deserialize};
-use ic_cdk::api::time;
-use std::collections::HashMap;
-use std::cell::RefCell;
 
 // Module declarations
-pub mod shared;
 pub mod doctor;
 pub mod patient;
-pub mod admin;
+pub mod shared;
 pub mod ai;
+pub mod ngo;
+pub mod admin;
 
-// Re-export commonly used types
-pub use shared::types::*;
-pub use shared::storage::*;
-pub use shared::utils::*;
+// Export service modules
+pub use shared::auth::*;
+pub use admin::*;
+pub use doctor::*;
+pub use patient::*;
+pub use ngo::*;
+pub use ai::*;
 
 // ICRC standards support for NFID
 #[derive(CandidType, Deserialize, Eq, PartialEq, Debug)]
@@ -61,12 +62,3 @@ fn icrc28_trusted_origins() -> Icrc28TrustedOriginsResponse {
 fn greet(name: String) -> String {
     format!("Hello, {}!", name)
 }
-
-// Re-export functions from modules
-pub use shared::auth::*;
-pub use doctor::medicines::*;
-pub use doctor::prescriptions::*;
-pub use patient::prescriptions::*;
-pub use admin::users::*;
-pub use admin::verification::*;
-pub use ai::chat::*;

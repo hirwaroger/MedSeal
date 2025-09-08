@@ -124,16 +124,14 @@ function Register({ showAlert }) {
         [name]: value
       };
       
-      // Auto-set license number based on role
-      if (name === 'role') {
-        if (value === 'Patient') {
-          updated.license_number = 'Not Needed';
-        } else if (value === 'Doctor') {
-          updated.license_number = ''; // Clear it for doctor to enter manually
-        }
+    // Auto-set license number based on role
+    if (name === 'role') {
+      if (value === 'Patient') {
+        updated.license_number = 'Not Needed';
+      } else if (value === 'Doctor' || value === 'NGO') {
+        updated.license_number = ''; // Clear it for doctor/NGO to enter manually
       }
-      
-      return updated;
+    }      return updated;
     });
     
     if (errors[name]) {
@@ -166,6 +164,10 @@ function Register({ showAlert }) {
     
     if (formData.role === 'Doctor' && !formData.license_number.trim()) {
       newErrors.license_number = 'License number is required for healthcare providers';
+    }
+    
+    if (formData.role === 'NGO' && !formData.license_number.trim()) {
+      newErrors.license_number = 'Registration number is required for NGOs';
     }
     
     if (!isConnected) {
@@ -488,23 +490,57 @@ function Register({ showAlert }) {
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Professional Information</h3>
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Your Role *</label>
-                          <select
-                            name="role"
-                            value={formData.role}
-                            onChange={handleChange}
-                            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                              errors.role ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
-                            }`}
-                            disabled={loading}
-                          >
-                            <option value="">Select your role</option>
-                            <option value="Doctor">Healthcare Provider</option>
-                            <option value="Patient">Patient</option>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            I am registering as <span className="text-red-500">*</span>
+                          </label>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <button
+                              type="button"
+                              onClick={() => setFormData({...formData, role: 'Doctor'})}
+                              className={`p-4 border rounded-lg text-left transition-colors ${
+                                formData.role === 'Doctor' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+                              }`}
+                              disabled={loading}
+                            >
+                              <div className="font-semibold">👨‍⚕️ Healthcare Provider</div>
+                              <div className="text-sm text-gray-600">Create prescriptions and manage patients</div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setFormData({...formData, role: 'Patient'})}
+                              className={`p-4 border rounded-lg text-left transition-colors ${
+                                formData.role === 'Patient' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+                              }`}
+                              disabled={loading}
+                            >
+                              <div className="font-semibold">🤒 Patient</div>
+                              <div className="text-sm text-gray-600">Access prescriptions and health guidance</div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setFormData({...formData, role: 'NGO'})}
+                              className={`p-4 border rounded-lg text-left transition-colors ${
+                                formData.role === 'NGO' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+                              }`}
+                              disabled={loading}
+                            >
+                              <div className="font-semibold">🤝 NGO</div>
+                              <div className="text-sm text-gray-600">Help patients with contribution campaigns</div>
+                            </button>
                             {adminExists === false && (
-                              <option value="Admin">System Administrator (First Time Setup)</option>
+                              <button
+                                type="button"
+                                onClick={() => setFormData({...formData, role: 'Admin'})}
+                                className={`p-4 border rounded-lg text-left transition-colors ${
+                                  formData.role === 'Admin' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+                                }`}
+                                disabled={loading}
+                              >
+                                <div className="font-semibold">⚙️ System Administrator</div>
+                                <div className="text-sm text-gray-600">First time setup - manage platform</div>
+                              </button>
                             )}
-                          </select>
+                          </div>
                           {errors.role && <p className="mt-1 text-xs text-red-600">{errors.role}</p>}
                         </div>
 
@@ -538,6 +574,25 @@ function Register({ showAlert }) {
                               readOnly
                             />
                             <p className="mt-1 text-xs text-gray-500">Patients do not require a license number</p>
+                          </div>
+                        )}
+
+                        {formData.role === 'NGO' && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">NGO Registration Number *</label>
+                            <input
+                              type="text"
+                              name="license_number"
+                              value={formData.license_number}
+                              onChange={handleChange}
+                              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                                errors.license_number ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
+                              }`}
+                              placeholder="Enter your NGO registration/license number"
+                              disabled={loading}
+                            />
+                            {errors.license_number && <p className="mt-1 text-xs text-red-600">{errors.license_number}</p>}
+                            <p className="mt-1 text-xs text-gray-500">Please provide your official NGO registration number for verification</p>
                           </div>
                         )}
                       </div>

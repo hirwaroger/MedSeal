@@ -1,13 +1,14 @@
 use candid::{CandidType, Deserialize};
 
-#[derive(Clone, Debug, CandidType, Deserialize)]
+#[derive(Clone, Debug, CandidType, Deserialize, PartialEq)]
 pub enum UserRole {
     Doctor,
     Patient,
     Admin,
+    NGO,
 }
 
-#[derive(Clone, Debug, CandidType, Deserialize)]
+#[derive(Clone, Debug, CandidType, Deserialize, PartialEq)]
 pub enum VerificationStatus {
     Pending,
     Approved,
@@ -180,4 +181,103 @@ pub struct PrincipalEntry {
     pub principal_ent: String,
     pub user_id: String,
     pub email: String,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+pub enum CaseStatus {
+    Pending,
+    UnderReview,
+    Approved,
+    Rejected,
+    Funded,
+    Closed,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+pub enum CaseUrgency {
+    Low,
+    Medium,
+    High,
+    Critical,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+pub struct PatientCase {
+    pub id: String,
+    pub patient_id: String,
+    pub patient_name: String,
+    pub patient_contact: String,
+    pub case_title: String,
+    pub case_description: String,
+    pub medical_condition: String,
+    pub required_amount: u64,
+    pub supporting_documents: Vec<String>,
+    pub urgency_level: CaseUrgency,
+    pub status: CaseStatus,
+    pub created_at: u64,
+    pub reviewed_at: Option<u64>,
+    pub reviewed_by: Option<String>,
+    pub admin_notes: Option<String>,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+pub struct ContributionPool {
+    pub id: String,
+    pub case_id: String,
+    pub ngo_id: String,
+    pub ngo_name: String,
+    pub target_amount: u64,
+    pub current_amount: u64,
+    pub contributors_count: u64,
+    pub pool_title: String,
+    pub pool_description: String,
+    pub created_at: u64,
+    pub deadline: Option<u64>,
+    pub is_active: bool,
+    pub is_completed: bool,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+pub struct Contribution {
+    pub id: String,
+    pub pool_id: String,
+    pub contributor_principal: String,
+    pub amount: u64,
+    pub message: Option<String>,
+    pub contributed_at: u64,
+    pub is_anonymous: bool,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+pub struct SubmitCaseRequest {
+    pub case_title: String,
+    pub case_description: String,
+    pub medical_condition: String,
+    pub required_amount: u64,
+    pub supporting_documents: Vec<String>,
+    pub urgency_level: CaseUrgency,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+pub struct CreatePoolRequest {
+    pub case_id: String,
+    pub target_amount: u64,
+    pub pool_title: String,
+    pub pool_description: String,
+    pub deadline_days: Option<u64>,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+pub struct ContributeRequest {
+    pub pool_id: String,
+    pub amount: u64,
+    pub message: Option<String>,
+    pub is_anonymous: bool,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+pub struct ProcessCaseRequest {
+    pub case_id: String,
+    pub status: CaseStatus,
+    pub admin_notes: Option<String>,
 }
