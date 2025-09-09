@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import FAIcon from '../../../components/FAIcon';
 
 function MedicationCard({ 
   medicine, 
@@ -19,7 +20,7 @@ function MedicationCard({
       <div className="border border-gray-200 rounded-xl border-l-4 border-l-red-500">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-4">
-            <span className="text-red-600">⚠️</span>
+            <FAIcon name="triangle-exclamation" className="text-red-600" />
             <h3 className="text-lg font-semibold text-red-700">
               Medicine Data Unavailable
             </h3>
@@ -51,7 +52,7 @@ function MedicationCard({
     <div className="border border-gray-200 rounded-xl border-l-4 border-l-blue-500">
       <div className="p-6 border-b border-gray-100">
         <div className="flex items-center gap-3">
-          <span className="text-blue-600">💊</span>
+          <FAIcon name="pills" className="text-blue-600" />
           <h3 className="text-lg font-semibold text-gray-900">
             {med.medicine?.name || 'Unknown Medicine'}
           </h3>
@@ -84,7 +85,7 @@ function MedicationCard({
         {med.custom_instructions && (
           <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-yellow-600">⚠️</span>
+              <FAIcon name="triangle-exclamation" className="text-yellow-600" />
               <h4 className="font-semibold text-yellow-800">Special Instructions</h4>
             </div>
             <p className="text-sm text-yellow-700">
@@ -130,7 +131,7 @@ function MedicationCard({
                     onClick={() => onViewGuide(med.medicine)}
                     className="mt-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
                   >
-                    Read Full Guide
+                    <span className="inline-flex items-center"><FAIcon name="file-lines" className="mr-2" />Read Full Guide</span>
                   </button>
                 )}
               </div>
@@ -146,7 +147,7 @@ function MedicationCard({
             })}
             className="inline-flex items-center px-3 py-2 border border-blue-300 text-blue-700 text-sm font-medium rounded-md hover:bg-blue-50 transition-colors"
           >
-            <span className="mr-1">🤖</span>
+            <FAIcon name="robot" className="mr-1" />
             Ask AI About This
           </button>
           {med.medicine?.guide_text && med.medicine.guide_text !== 'No guide available' && (
@@ -154,7 +155,7 @@ function MedicationCard({
               onClick={() => onViewGuide(med.medicine)}
               className="inline-flex items-center px-3 py-2 border border-green-300 text-green-700 text-sm font-medium rounded-md hover:bg-green-50 transition-colors"
             >
-              <span className="mr-1">📄</span>
+              <FAIcon name="file-lines" className="mr-1" />
               View Guide
             </button>
           )}

@@ -1,3 +1,5 @@
+import FAIcon from '../../../components/FAIcon';
+
 function PrescriptionHistory({ history, onLoadFromHistory, formatDateShort }) {
   if (history.length === 0) return null;
 
@@ -5,7 +7,7 @@ function PrescriptionHistory({ history, onLoadFromHistory, formatDateShort }) {
     <div className="bg-white rounded-xl shadow-sm border border-gray-200">
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center gap-3">
-          <span className="text-2xl">📚</span>
+          <FAIcon name="book" className="text-2xl" />
           <h2 className="text-xl font-semibold text-gray-900">Recent Prescriptions</h2>
         </div>
       </div>
@@ -19,7 +21,7 @@ function PrescriptionHistory({ history, onLoadFromHistory, formatDateShort }) {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <span className="text-blue-600">💊</span>
+                  <FAIcon name="pills" className="text-blue-600" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900">Prescription #{entry.id}</h3>

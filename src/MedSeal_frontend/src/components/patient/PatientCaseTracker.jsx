@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import FAIcon from '../FAIcon';
 
 function PatientCaseTracker() {
   const { authenticatedActor } = useAuth();
@@ -124,7 +125,7 @@ function PatientCaseTracker() {
                           rel="noopener noreferrer"
                           className="text-sm text-blue-600 hover:text-blue-700 block"
                         >
-                          Document {index + 1}
+                          <FAIcon name="file-lines" className="mr-2" /> Document {index + 1}
                         </a>
                       ))}
                     </div>
@@ -136,7 +137,9 @@ function PatientCaseTracker() {
         </div>
       ) : (
         <div className="text-center py-12">
-          <div className="text-6xl mb-4">📋</div>
+          <div className="text-6xl mb-4">
+            <FAIcon name="folder-open" className="inline-block" />
+          </div>
           <h3 className="text-xl font-semibold text-gray-500 mb-2">No cases submitted yet</h3>
           <p className="text-gray-500 mb-6">
             Submit your first medical assistance request to get started.

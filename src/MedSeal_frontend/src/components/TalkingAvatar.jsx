@@ -59,11 +59,11 @@ export default function TalkingAvatar({
       voice: femaleVoice,
       rate: 0.9, // Slightly slower for clarity
       onStart: () => {
-        console.log("Avatar speech started 🎤");
+        console.log("Avatar speech started");
         if (onSpeechStart) onSpeechStart();
       },
       onEnd: () => {
-        console.log("Avatar speech ended ✅");
+        console.log("Avatar speech ended");
         if (onSpeechEnd) onSpeechEnd();
       }
     });
@@ -71,7 +71,7 @@ export default function TalkingAvatar({
 
   const stopSpeaking = () => {
     cancel();
-    console.log("Avatar speech stopped ⏹️");
+    console.log("Avatar speech stopped");
     if (onSpeechEnd) onSpeechEnd();
   };
 
@@ -95,22 +95,45 @@ export default function TalkingAvatar({
         <button
           onClick={startSpeaking}
           disabled={speaking || !text || !femaleVoice}
-          className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-50"
+          className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-50 flex items-center"
+          aria-label="Speak"
         >
-          {speaking ? "🎤 Speaking..." : "🔊 Speak"}
+          {speaking ? (
+            <>
+              <i className="fa-solid fa-microphone mr-2" aria-hidden="true" />
+              Speaking...
+            </>
+          ) : (
+            <>
+              <i className="fa-solid fa-volume-up mr-2" aria-hidden="true" />
+              Speak
+            </>
+          )}
         </button>
         <button
           onClick={stopSpeaking}
           disabled={!speaking}
-          className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 disabled:opacity-50"
+          className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 disabled:opacity-50 flex items-center"
+          aria-label="Stop speaking"
         >
-          ⏹ Stop
+          <i className="fa-solid fa-stop mr-2" aria-hidden="true" />
+          Stop
         </button>
       </div>
 
       {/* Status indicator */}
       <div className="mt-1 text-xs text-gray-500 text-center">
-        {speaking ? "🎤 Speaking..." : "😴 Ready to speak"}
+        {speaking ? (
+          <span className="flex items-center justify-center gap-2"> 
+            <i className="fa-solid fa-microphone" aria-hidden="true" />
+            <span>Speaking...</span>
+          </span>
+        ) : (
+          <span className="flex items-center justify-center gap-2">
+            <i className="fa-solid fa-face-smile" aria-hidden="true" />
+            <span>Ready to speak</span>
+          </span>
+        )}
       </div>
     </div>
   );

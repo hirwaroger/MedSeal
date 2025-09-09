@@ -329,11 +329,11 @@ function Register({ showAlert }) {
               <p className="text-xs text-blue-300 mb-3">Trusted by healthcare professionals</p>
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2">
-                  <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                  <i className="fa-solid fa-shield-halved text-green-400 mr-2" aria-hidden="true" />
                   <span className="text-xs text-blue-200">HIPAA Compliant</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></span>
+                  <i className="fa-solid fa-lock text-blue-400 mr-2" aria-hidden="true" />
                   <span className="text-xs text-blue-200">SOC 2 Certified</span>
                 </div>
               </div>
@@ -502,7 +502,7 @@ function Register({ showAlert }) {
                               }`}
                               disabled={loading}
                             >
-                              <div className="font-semibold">👨‍⚕️ Healthcare Provider</div>
+                              <div className="font-semibold"><i className="fa-solid fa-user-doctor mr-2" aria-hidden="true"></i>Healthcare Provider</div>
                               <div className="text-sm text-gray-600">Create prescriptions and manage patients</div>
                             </button>
                             <button
@@ -513,7 +513,7 @@ function Register({ showAlert }) {
                               }`}
                               disabled={loading}
                             >
-                              <div className="font-semibold">🤒 Patient</div>
+                              <div className="font-semibold"><i className="fa-solid fa-user-injured mr-2" aria-hidden="true"></i>Patient</div>
                               <div className="text-sm text-gray-600">Access prescriptions and health guidance</div>
                             </button>
                             <button
@@ -524,7 +524,7 @@ function Register({ showAlert }) {
                               }`}
                               disabled={loading}
                             >
-                              <div className="font-semibold">🤝 NGO</div>
+                              <div className="font-semibold"><i className="fa-solid fa-hands-helping mr-2" aria-hidden="true"></i>NGO</div>
                               <div className="text-sm text-gray-600">Help patients with contribution campaigns</div>
                             </button>
                             {adminExists === false && (
@@ -536,7 +536,7 @@ function Register({ showAlert }) {
                                 }`}
                                 disabled={loading}
                               >
-                                <div className="font-semibold">⚙️ System Administrator</div>
+                                <div className="font-semibold"><i className="fa-solid fa-cog mr-2" aria-hidden="true"></i>System Administrator</div>
                                 <div className="text-sm text-gray-600">First time setup - manage platform</div>
                               </button>
                             )}

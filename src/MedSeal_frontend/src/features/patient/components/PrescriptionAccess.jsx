@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { usePrescription } from '../hooks/usePrescription';
+import FAIcon from '../../../components/FAIcon';
 
 function PrescriptionAccess({ onPrescriptionLoad, showAlert }) {
   const [prescriptionCode, setPrescriptionCode] = useState('');
@@ -32,7 +33,7 @@ function PrescriptionAccess({ onPrescriptionLoad, showAlert }) {
     <div className="bg-white rounded-xl shadow-sm border border-gray-200">
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center gap-3 mb-2">
-          <span className="text-2xl">📋</span>
+          <FAIcon name="clipboard" className="text-2xl" />
           <h2 className="text-xl font-semibold text-gray-900">Access Your Prescription</h2>
         </div>
         <p className="text-gray-600">
@@ -72,7 +73,7 @@ function PrescriptionAccess({ onPrescriptionLoad, showAlert }) {
               </>
             ) : (
               <>
-                <span className="mr-2">🔓</span>
+                <FAIcon name="unlock" className="mr-2" />
                 Access Prescription
               </>
             )}

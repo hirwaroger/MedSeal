@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import Button from '../../shared/components/Button';
+import FAIcon from '../FAIcon';
 
 function NGOVerificationForm({ onSuccess, existingRequest }) {
   const { authenticatedActor } = useAuth();
@@ -243,7 +244,7 @@ function NGOVerificationForm({ onSuccess, existingRequest }) {
                         onClick={() => removeDocument(index)}
                         className="text-red-600 hover:text-red-700 ml-2"
                       >
-                        ✕
+                        <FAIcon name="times" />
                       </button>
                     </div>
                   ))}

@@ -276,7 +276,7 @@ const LandingPage = ({ onLogin, onRegister }) => {
                   <i className="fa-solid fa-mobile-screen-button text-white" aria-hidden="true" />
                 </div>
                 <div>
-                  <div className="font-semibold text-sm">📱 Install MedSeal as PWA</div>
+                  <div className="font-semibold text-sm"><i className="fa-solid fa-mobile-screen-button mr-1" aria-hidden="true" />Install MedSeal as PWA</div>
                   <div className="text-xs text-blue-100">Get native app experience with offline access & push notifications</div>
                 </div>
               </div>
@@ -466,13 +466,13 @@ const LandingPage = ({ onLogin, onRegister }) => {
                         onClick={handleRegister}
                         className="w-full py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold text-xs rounded-lg hover:from-blue-700 hover:to-blue-800 transform hover:scale-105 transition-all duration-200 shadow-lg"
                       >
-                        🚀 Join Platform
+                        <i className="fa-solid fa-rocket mr-1" aria-hidden="true" />Join Platform
                       </button>
                       <button
                         onClick={handleLogin}
                         className="w-full py-2 border border-blue-600 text-blue-600 font-bold text-xs rounded-lg hover:bg-blue-50 transition-all duration-200"
                       >
-                        💼 Sign In
+                        <i className="fa-solid fa-briefcase mr-1" aria-hidden="true" />Sign In
                       </button>
                     </div>
                   </div>
@@ -491,9 +491,7 @@ const LandingPage = ({ onLogin, onRegister }) => {
           <div className="container mx-auto px-4">
             <div className="text-center mb-16">
               <div className="inline-flex items-center space-x-2 bg-blue-600 text-white rounded-full px-6 py-3 mb-6">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-                </svg>
+                <i className="fa-solid fa-mobile-screen-button" aria-hidden="true" />
                 <span className="font-bold">MedSeal Solution</span>
               </div>
               <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
@@ -507,7 +505,7 @@ const LandingPage = ({ onLogin, onRegister }) => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
               <div>
                 <div className="inline-flex items-center space-x-2 bg-red-100 text-red-800 rounded-full px-4 py-2 mb-6">
-                  <span>⚠️</span>
+                  <i className="fa-solid fa-triangle-exclamation mr-2" aria-hidden="true" />
                   <span className="font-semibold">Current Healthcare Problems</span>
                 </div>
                 
@@ -519,7 +517,7 @@ const LandingPage = ({ onLogin, onRegister }) => {
                   {problemPoints.map((point, index) => (
                     <div key={index} className="flex items-start space-x-3">
                       <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                        <span className="text-white text-sm">✗</span>
+                        <i className="fa-solid fa-xmark text-white text-xs" aria-hidden="true" />
                       </div>
                       <span className="text-gray-700 leading-relaxed">{point}</span>
                     </div>
@@ -657,7 +655,7 @@ const LandingPage = ({ onLogin, onRegister }) => {
                   className="px-8 py-3 bg-gradient-to-r from-green-600 to-blue-600 text-white font-bold rounded-xl hover:from-green-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-200 shadow-lg flex items-center justify-center space-x-2"
                 >
                   {isInstalling ? (
-                    <>
+                    <> 
                       <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -677,17 +675,17 @@ const LandingPage = ({ onLogin, onRegister }) => {
             {/* Benefits Highlight */}
             <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl">
-                <div className="text-3xl mb-3">🚀</div>
+                <div className="text-3xl mb-3"><i className="fa-solid fa-rocket" aria-hidden="true" /></div>
                 <h4 className="font-bold text-gray-900 mb-2">Faster Loading</h4>
                 <p className="text-sm text-gray-600">Up to 3x faster loading times compared to web browser</p>
               </div>
               <div className="text-center p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-xl">
-                <div className="text-3xl mb-3">📱</div>
+                <div className="text-3xl mb-3"><i className="fa-solid fa-mobile-screen-button" aria-hidden="true" /></div>
                 <h4 className="font-bold text-gray-900 mb-2">Native Feel</h4>
                 <p className="text-sm text-gray-600">Full-screen experience with native app-like interactions</p>
               </div>
               <div className="text-center p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl">
-                <div className="text-3xl mb-3">🔄</div>
+                <div className="text-3xl mb-3"><i className="fa-solid fa-sync" aria-hidden="true" /></div>
                 <h4 className="font-bold text-gray-900 mb-2">Auto Updates</h4>
                 <p className="text-sm text-gray-600">Always stay updated with the latest features automatically</p>
               </div>
@@ -763,7 +761,7 @@ const LandingPage = ({ onLogin, onRegister }) => {
                       : 'text-blue-600 hover:text-blue-800'
                   }`}
                 >
-                  👨‍⚕️ For Healthcare Providers
+                  <i className="fa-solid fa-user-doctor mr-2" aria-hidden="true" />For Healthcare Providers
                 </button>
                 <button
                   onClick={() => setActiveTab('patients')}
@@ -773,7 +771,7 @@ const LandingPage = ({ onLogin, onRegister }) => {
                       : 'text-blue-600 hover:text-blue-800'
                   }`}
                 >
-                  👥 For Patients
+                  <i className="fa-solid fa-users mr-2" aria-hidden="true" />For Patients
                 </button>
               </div>
             </div>
@@ -855,13 +853,15 @@ const LandingPage = ({ onLogin, onRegister }) => {
                   onClick={handleRegister}
                   className="px-10 py-4 bg-white text-blue-600 font-bold text-lg rounded-xl hover:bg-blue-50 transform hover:scale-105 transition-all duration-200 shadow-2xl"
                 >
-                  🚀 Start with MedSeal
+                  <i className="fa-solid fa-rocket" aria-hidden="true" />
+                  <span>Start with MedSeal</span>
                 </button>
                 <button
                   onClick={handleLogin}
                   className="px-10 py-4 border-2 border-white/50 text-white font-bold text-lg rounded-xl hover:bg-white/20 transition-all duration-200 backdrop-blur-md"
                 >
-                  💼 Access Platform
+                  <i className="fa-solid fa-briefcase" aria-hidden="true" />
+                  <span>Access Platform</span>
                 </button>
               </div>
 
@@ -893,7 +893,7 @@ const LandingPage = ({ onLogin, onRegister }) => {
           <div className="container mx-auto px-4">
             <div className="text-center mb-14">
               <div className="inline-flex items-center space-x-2 bg-blue-600 text-white rounded-full px-6 py-2 mb-5">
-                <span>🛡️</span><span className="font-semibold">Security & Privacy</span>
+                <i className="fa-solid fa-shield-halved mr-2" aria-hidden="true" /><span className="font-semibold">Security & Privacy</span>
               </div>
               <h2 className="text-4xl font-bold text-gray-900">
                 Built for <span className="text-blue-600">Trust & Compliance</span>
@@ -924,7 +924,7 @@ const LandingPage = ({ onLogin, onRegister }) => {
           <div className="container mx-auto px-4">
             <div className="text-center mb-14">
               <div className="inline-flex items-center space-x-2 bg-white/15 backdrop-blur-md rounded-full px-6 py-2 mb-5 border border-white/20">
-                <span>🤖</span><span className="font-semibold">AI Health Partner</span>
+                <i className="fa-solid fa-robot mr-2" aria-hidden="true" /><span className="font-semibold">AI Health Partner</span>
               </div>
               <h2 className="text-4xl font-bold">
                 Intelligent <span className="text-blue-300">Clinical Support</span>

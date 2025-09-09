@@ -39,7 +39,7 @@ function DashboardOverview({ user, medicines, prescriptions, onTabChange, onOpen
               onClick={() => onOpenAI(null, 'general')}
               className="inline-flex items-center px-4 py-2 border border-blue-300 text-blue-700 font-medium rounded-lg hover:bg-blue-50 transition-colors"
             >
-              <span className="mr-2">🤖</span>
+              <i className="fa-solid fa-robot mr-2" aria-hidden="true" />
               AI Assistant
             </button>
             <button 
@@ -101,7 +101,7 @@ function DashboardOverview({ user, medicines, prescriptions, onTabChange, onOpen
             <div className="bg-white rounded-xl shadow-sm border border-gray-200">
               <div className="p-6 border-b border-gray-200 flex justify-between items-center">
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">📈</span>
+                  <span className="text-2xl"><i className="fa-solid fa-chart-line" aria-hidden="true" /></span>
                   <h2 className="text-xl font-semibold text-gray-900">Recent Activity</h2>
                 </div>
                 <button 
@@ -116,7 +116,7 @@ function DashboardOverview({ user, medicines, prescriptions, onTabChange, onOpen
                   <div key={index} className={`p-4 ${index < 4 ? 'border-b border-gray-100' : ''}`}>
                     <div className="flex items-center">
                       <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                        <span className="text-blue-600">📋</span>
+                        <i className="fa-solid fa-clipboard-list text-blue-600" aria-hidden="true" />
                       </div>
                       <div className="flex-1">
                         <h3 className="font-semibold text-gray-900">
@@ -159,7 +159,7 @@ function DashboardOverview({ user, medicines, prescriptions, onTabChange, onOpen
             <div className="bg-white rounded-xl shadow-sm border border-gray-200">
               <div className="p-6 border-b border-gray-200">
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">⚡</span>
+                  <span className="text-2xl"><i className="fa-solid fa-bolt" aria-hidden="true" /></span>
                   <h2 className="text-xl font-semibold text-gray-900">Quick Actions</h2>
                 </div>
               </div>
@@ -168,7 +168,7 @@ function DashboardOverview({ user, medicines, prescriptions, onTabChange, onOpen
                   onClick={() => onTabChange('add-medicine')}
                   className="w-full flex items-start p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
                 >
-                  <span className="text-2xl mr-3">➕</span>
+                  <span className="text-2xl mr-3"><i className="fa-solid fa-plus" aria-hidden="true" /></span>
                   <div>
                     <div className="font-semibold text-gray-900">Add Medicine</div>
                     <div className="text-sm text-gray-600">Build your repository</div>
@@ -178,7 +178,7 @@ function DashboardOverview({ user, medicines, prescriptions, onTabChange, onOpen
                   onClick={() => onTabChange('prescriptions')}
                   className="w-full flex items-start p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
                 >
-                  <span className="text-2xl mr-3">📋</span>
+                  <span className="text-2xl mr-3"><i className="fa-solid fa-clipboard-list" aria-hidden="true" /></span>
                   <div>
                     <div className="font-semibold text-gray-900">New Prescription</div>
                     <div className="text-sm text-gray-600">Create for patient</div>
@@ -188,7 +188,7 @@ function DashboardOverview({ user, medicines, prescriptions, onTabChange, onOpen
                   onClick={() => onTabChange('medicines')}
                   className="w-full flex items-start p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
                 >
-                  <span className="text-2xl mr-3">💊</span>
+                  <span className="text-2xl mr-3"><i className="fa-solid fa-pills" aria-hidden="true" /></span>
                   <div>
                     <div className="font-semibold text-gray-900">View Medicines</div>
                     <div className="text-sm text-gray-600">Manage repository</div>
@@ -200,20 +200,20 @@ function DashboardOverview({ user, medicines, prescriptions, onTabChange, onOpen
             <div className="bg-white rounded-xl shadow-sm border border-gray-200">
               <div className="p-6 border-b border-gray-200">
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">💡</span>
+                  <span className="text-2xl"><i className="fa-solid fa-lightbulb" aria-hidden="true" /></span>
                   <h2 className="text-xl font-semibold text-gray-900">Tips</h2>
                 </div>
               </div>
               <div className="p-6 space-y-4">
                 <div className="flex items-start gap-3">
-                  <span className="text-red-600 text-xl">📄</span>
+                  <span className="text-red-600 text-xl"><i className="fa-solid fa-file-lines" aria-hidden="true" /></span>
                   <div>
                     <h3 className="font-semibold text-gray-900">OCR Technology</h3>
                     <p className="text-sm text-gray-600">Upload PDF guides for automatic text extraction</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <span className="text-blue-600 text-xl">🤖</span>
+                  <span className="text-blue-600 text-xl"><i className="fa-solid fa-robot" aria-hidden="true" /></span>
                   <div>
                     <h3 className="font-semibold text-gray-900">AI Assistant</h3>
                     <p className="text-sm text-gray-600">Get help with prescriptions and medical questions</p>

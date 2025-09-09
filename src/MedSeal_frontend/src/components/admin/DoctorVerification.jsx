@@ -60,7 +60,7 @@ function DoctorVerification() {
         </div>
       ) : (
         <div className="text-center py-12">
-          <div className="text-6xl mb-4">✅</div>
+          <div className="text-6xl mb-4"><i className="fa-solid fa-circle-check text-green-500"></i></div>
           <h3 className="text-xl font-semibold text-gray-500 mb-2">No pending verifications</h3>
           <p className="text-gray-500">
             Doctor verification requests will appear here for review.

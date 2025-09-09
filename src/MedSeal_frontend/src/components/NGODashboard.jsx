@@ -43,15 +43,15 @@ function NGODashboard({ user, showAlert }) {
   };
 
   const sidebarItems = [
-    { id: 'overview', icon: '📊', label: 'NGO Overview' },
-    { id: 'cases', icon: '📋', label: 'Approved Cases' },
-    { id: 'pools', icon: '💰', label: 'My Contribution Pools' },
-    { id: 'create-pool', icon: '➕', label: 'Create Pool' },
-    { id: 'analytics', icon: '📈', label: 'Impact Analytics' },
-    { 
-      id: 'verification', 
-      icon: user.verification_status === 'Approved' ? '✅' : user.verification_status === 'Pending' ? '⏳' : '🔍', 
-      label: user.verification_status === 'Approved' ? 'Verified ✓' : 
+    { id: 'overview', icon: <i className="fa-solid fa-chart-pie" aria-hidden="true" />, label: 'NGO Overview' },
+    { id: 'cases', icon: <i className="fa-solid fa-clipboard-list" aria-hidden="true" />, label: 'Approved Cases' },
+    { id: 'pools', icon: <i className="fa-solid fa-coins" aria-hidden="true" />, label: 'My Contribution Pools' },
+    { id: 'create-pool', icon: <i className="fa-solid fa-plus" aria-hidden="true" />, label: 'Create Pool' },
+    { id: 'analytics', icon: <i className="fa-solid fa-chart-line" aria-hidden="true" />, label: 'Impact Analytics' },
+    {
+      id: 'verification',
+      icon: user.verification_status === 'Approved' ? <i className="fa-solid fa-check-circle" aria-hidden="true" /> : user.verification_status === 'Pending' ? <i className="fa-solid fa-hourglass-half" aria-hidden="true" /> : <i className="fa-solid fa-search" aria-hidden="true" />,
+      label: user.verification_status === 'Approved' ? 'Verified ✓' :
              user.verification_status === 'Pending' ? 'Verification Pending' : 'Request Verification'
     },
   ];
@@ -79,9 +79,8 @@ function NGODashboard({ user, showAlert }) {
                     user.verification_status === 'Pending' ? 'text-yellow-200' :
                     'text-green-200'
                   }`}>
-                    {user.verification_status === 'Approved' ? '✅ Verified NGO' :
-                     user.verification_status === 'Pending' ? '⏳ Pending Verification' :
-                     'Not Verified'}
+                    {user.verification_status === 'Approved' ? <><i className="fa-solid fa-check-circle mr-1" /> Verified NGO</> :
+                     user.verification_status === 'Pending' ? <><i className="fa-solid fa-hourglass-half mr-1" /> Pending Verification</> : 'Not Verified'}
                   </p>
                 )}
               </div>
@@ -133,7 +132,7 @@ function NGODashboard({ user, showAlert }) {
                   user.verification_status === 'Rejected' ? 'bg-red-50 border-red-300' : 'bg-blue-50 border-blue-300'
                 }`}>
                   <span className="text-2xl">
-                    {user.verification_status === 'Pending' ? '⏳' : user.verification_status === 'Rejected' ? '❌' : '🔍'}
+                    {user.verification_status === 'Pending' ? <i className="fa-solid fa-hourglass-half" aria-hidden="true" /> : user.verification_status === 'Rejected' ? <i className="fa-solid fa-xmark" aria-hidden="true" /> : <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />}
                   </span>
                   <div className="flex-1">
                     <h3 className="font-semibold text-gray-900 mb-1">
@@ -204,7 +203,9 @@ function NGODashboard({ user, showAlert }) {
               </div>
             ) : (
               <div className="text-center py-12">
-                <div className="text-6xl mb-4">🤝</div>
+                <div className="text-6xl mb-4">
+                  <i className="fa-solid fa-chart-pie" aria-hidden="true"></i>
+                </div>
                 <h3 className="text-xl font-semibold text-gray-500 mb-2">
                   Welcome to MedSeal NGO Platform
                 </h3>
@@ -262,14 +263,16 @@ function NGODashboard({ user, showAlert }) {
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <div className="text-6xl mb-4">📋</div>
+                  <div className="text-6xl mb-4">
+                    <i className="fa-solid fa-clipboard-list" aria-hidden="true"></i>
+                  </div>
                   <h3 className="text-xl font-semibold text-gray-500 mb-2">No approved cases yet</h3>
                   <p className="text-gray-500">Approved patient cases will appear here for pool creation.</p>
                 </div>
               )
             ) : (
               <div className="text-center py-12">
-                <div className="text-6xl mb-4">🔒</div>
+                <div className="text-6xl mb-4"><i className="fa-solid fa-lock" aria-hidden="true" /></div>
                 <h3 className="text-xl font-semibold text-gray-500 mb-2">Verification Required</h3>
                 <p className="text-gray-500">Complete NGO verification to view patient cases.</p>
               </div>
@@ -326,21 +329,25 @@ function NGODashboard({ user, showAlert }) {
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <div className="text-6xl mb-4">💰</div>
+                  <div className="text-6xl mb-4">
+                    <i className="fa-solid fa-coins" aria-hidden="true"></i>
+                  </div>
                   <h3 className="text-xl font-semibold text-gray-500 mb-2">No pools created yet</h3>
                   <p className="text-gray-500 mb-4">Create your first contribution pool to start helping patients.</p>
                   <button
                     onClick={() => setActiveTab('create-pool')}
                     className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                   >
-                    <span className="mr-2">➕</span>
+                    <span className="mr-2">
+                      <i className="fa-solid fa-plus" aria-hidden="true"></i>
+                    </span>
                     Create Pool
                   </button>
                 </div>
               )
             ) : (
               <div className="text-center py-12">
-                <div className="text-6xl mb-4">🔒</div>
+                <div className="text-6xl mb-4"><i className="fa-solid fa-lock" aria-hidden="true" /></div>
                 <h3 className="text-xl font-semibold text-gray-500 mb-2">Verification Required</h3>
                 <p className="text-gray-500">Complete NGO verification to create contribution pools.</p>
               </div>

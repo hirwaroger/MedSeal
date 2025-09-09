@@ -172,7 +172,7 @@ function NGOVerificationManagement() {
         </div>
       ) : (
         <div className="text-center py-12">
-          <div className="text-6xl mb-4">📋</div>
+          <div className="text-6xl mb-4"><i className="fa-solid fa-clipboard-list text-gray-400"></i></div>
           <h3 className="text-xl font-semibold text-gray-500 mb-2">No verification requests</h3>
           <p className="text-gray-500">
             NGO verification requests will appear here for review.
@@ -239,18 +239,18 @@ function NGOVerificationManagement() {
 
             <div className="flex gap-4">
               <button
-                onClick={() => processRequest(selectedRequest.id, 'Approved')}
-                disabled={processing}
-                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
-              >
-                {processing ? 'Processing...' : 'Approve'}
-              </button>
-              <button
                 onClick={() => processRequest(selectedRequest.id, 'Rejected')}
                 disabled={processing}
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
               >
                 {processing ? 'Processing...' : 'Reject'}
+              </button>
+              <button
+                onClick={() => processRequest(selectedRequest.id, 'Approved')}
+                disabled={processing}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+              >
+                {processing ? 'Processing...' : 'Approve'}
               </button>
               <button
                 onClick={() => {

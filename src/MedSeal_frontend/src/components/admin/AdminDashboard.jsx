@@ -14,12 +14,12 @@ function AdminDashboard({ user, showAlert }) {
   const { logout } = useAuth();
 
   const sidebarItems = [
-    { id: 'overview', icon: '📊', label: 'Overview' },
-    { id: 'users', icon: '👥', label: 'User Management' },
-    { id: 'doctor-verification', icon: '✅', label: 'Doctor Verification' },
-    { id: 'ngo-verification', icon: '🤝', label: 'NGO Verification' },
-    { id: 'patient-cases', icon: '📋', label: 'Patient Cases' },
-    { id: 'analytics', icon: '📈', label: 'System Analytics' },
+    { id: 'overview', icon: <i className="fa-solid fa-chart-pie"></i>, label: 'Overview' },
+    { id: 'users', icon: <i className="fa-solid fa-users"></i>, label: 'User Management' },
+    { id: 'doctor-verification', icon: <i className="fa-solid fa-user-doctor"></i>, label: 'Doctor Verification' },
+    { id: 'ngo-verification', icon: <i className="fa-solid fa-handshake"></i>, label: 'NGO Verification' },
+    { id: 'patient-cases', icon: <i className="fa-solid fa-clipboard-list"></i>, label: 'Patient Cases' },
+    { id: 'analytics', icon: <i className="fa-solid fa-chart-line"></i>, label: 'System Analytics' },
   ];
 
   return (

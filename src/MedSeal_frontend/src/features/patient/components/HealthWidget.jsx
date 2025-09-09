@@ -1,3 +1,5 @@
+import FAIcon from '../../../components/FAIcon';
+
 function HealthWidget({ 
   onClose, 
   onGeneralChat, 
@@ -11,7 +13,7 @@ function HealthWidget({
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 rounded-t-lg flex justify-between items-center">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-            <span>❤️</span>
+            <FAIcon name="heart" className="text-white" />
           </div>
           <div>
             <h3 className="font-semibold">Health Partner</h3>
@@ -22,7 +24,7 @@ function HealthWidget({
           onClick={onClose}
           className="text-white hover:bg-white/20 rounded p-1"
         >
-          <span>✕</span>
+          <FAIcon name="times" />
         </button>
       </div>
       <div className="p-4">
@@ -34,14 +36,14 @@ function HealthWidget({
             onClick={onGeneralChat}
             className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
-            <span>💬</span>
+            <FAIcon name="comment" />
             General Chat
           </button>
           <button 
             onClick={onFullChat}
             className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            <span>🔍</span>
+            <FAIcon name="search" />
             Full Chat
           </button>
           <button 
@@ -54,7 +56,7 @@ function HealthWidget({
             }}
             className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            <span>💊</span>
+            <FAIcon name="pills" />
             Prescription Mode
           </button>
         </div>

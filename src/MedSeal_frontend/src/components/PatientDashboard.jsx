@@ -7,7 +7,6 @@ import PrescriptionHistory from '../features/patient/components/PrescriptionHist
 import MedicationCard from '../features/patient/components/MedicationCard';
 import HealthWidget from '../features/patient/components/HealthWidget';
 import AIChat from './AIChat';
-// import PatientCaseSubmission from './patient/PatientCaseSubmission';
 import PatientCaseTracker from './patient/PatientCaseTracker';
 import { useFavicon } from './useFavicon';
 import PatientCaseSubmission from '../features/patient/components/PatientCaseSubmission';
@@ -304,15 +303,15 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
   };
 
   const sidebarItems = [
-    { id: 'access', icon: '📥', label: 'Access Prescription' },
-    { id: 'history', icon: '📜', label: 'Prescription History' },
-    { id: 'chat', icon: '💬', label: 'AI Chat' },
-    { id: 'case_submission', icon: '📋', label: 'Submit Case' },
-    { id: 'my_cases', icon: '📊', label: 'My Cases' },
+    { id: 'access', icon: <i className="fa-solid fa-inbox" aria-hidden="true" />, label: 'Access Prescription' },
+    { id: 'history', icon: <i className="fa-solid fa-file-alt" aria-hidden="true" />, label: 'Prescription History' },
+    { id: 'chat', icon: <i className="fa-solid fa-comments" aria-hidden="true" />, label: 'AI Chat' },
+    { id: 'case_submission', icon: <i className="fa-solid fa-clipboard" aria-hidden="true" />, label: 'Submit Case' },
+    { id: 'my_cases', icon: <i className="fa-solid fa-chart-bar" aria-hidden="true" />, label: 'My Cases' },
   ];
   // Do NOT auto add prescription tab unless claimed
   if (hookPrescription && !sidebarItems.find(i => i.id === 'prescription')) {
-    const prescriptionTab = { id: 'prescription', icon: '💊', label: 'Current Prescription' };
+    const prescriptionTab = { id: 'prescription', icon: <i className="fa-solid fa-pills" aria-hidden="true" />, label: 'Current Prescription' };
     sidebarItems.splice(1, 0, prescriptionTab);
   }
 
@@ -335,14 +334,14 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
             <div className="bg-white rounded-xl shadow-sm border border-gray-200">
               <div className="p-6 border-b border-gray-200">
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">🏥</span>
+                  <span className="text-2xl"><i className="fa-solid fa-hospital" aria-hidden="true" /></span>
                   <h2 className="text-xl font-semibold text-gray-900">Health Tips</h2>
                 </div>
               </div>
               <div className="p-6 space-y-4">
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-green-600">⏰</span>
+                    <span className="text-green-600"><i className="fa-solid fa-inbox" aria-hidden="true" /></span>
                     <h3 className="font-semibold text-green-800">Take on Time</h3>
                   </div>
                   <p className="text-sm text-green-700">
@@ -352,7 +351,7 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
                 
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-blue-600">🍽️</span>
+                    <span className="text-blue-600"><i className="fa-solid fa-utensils" aria-hidden="true" /></span>
                     <h3 className="font-semibold text-blue-800">Food Interactions</h3>
                   </div>
                   <p className="text-sm text-blue-700">
@@ -362,7 +361,7 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
                 
                 <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-yellow-600">⚠️</span>
+                    <span className="text-yellow-600"><i className="fa-solid fa-triangle-exclamation" aria-hidden="true" /></span>
                     <h3 className="font-semibold text-yellow-800">Side Effects</h3>
                   </div>
                   <p className="text-sm text-yellow-700">
@@ -395,7 +394,7 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
           <div className="p-6 border-b border-gray-200">
             <div className="flex items-center gap-3">
-              <span className="text-2xl">💬</span>
+              <span className="text-2xl"><i className="fa-solid fa-comments" aria-hidden="true" /></span>
               <h2 className="text-xl font-semibold text-gray-900">AI Chat</h2>
             </div>
           </div>
@@ -444,7 +443,7 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
             <div className="bg-white rounded-xl shadow-sm border border-gray-200">
               <div className="p-6 border-b border-gray-200">
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">🎥</span>
+                  <span className="text-2xl"><i className="fa-solid fa-video" aria-hidden="true" /></span>
                   <h2 className="text-xl font-semibold text-gray-900">Doctor's Video Message</h2>
                 </div>
               </div>
@@ -497,7 +496,7 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">📋</span>
+                  <span className="text-2xl"><i className="fa-solid fa-clipboard" aria-hidden="true" /></span>
                   <div>
                     <h1 className="text-2xl font-bold text-gray-900">Your Prescription</h1>
                     <p className="text-gray-600">Patient: {activePrescription.patient_name}</p>
@@ -514,7 +513,7 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
               <div className="p-6">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-blue-600">📝</span>
+                    <span className="text-blue-600"><i className="fa-solid fa-pen-to-square" aria-hidden="true" /></span>
                     <h3 className="font-semibold text-blue-800">Doctor's Notes</h3>
                   </div>
                   <p className="text-blue-700">{activePrescription.additional_notes}</p>
@@ -547,21 +546,21 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
                   onClick={() => openAIAssistant(null, 'prescription')}
                   className="flex items-center justify-center gap-2 p-4 border border-purple-300 text-purple-700 rounded-lg hover:bg-purple-50 transition-colors"
                 >
-                  <span>🤖</span>
+                  <i className="fa-solid fa-robot" aria-hidden="true" />
                   Ask AI About Prescription
                 </button>
                 <button
                   onClick={() => setShowHealthWidget(true)}
                   className="flex items-center justify-center gap-2 p-4 border border-green-300 text-green-700 rounded-lg hover:bg-green-50 transition-colors"
                 >
-                  <span>❤️</span>
+                  <i className="fa-solid fa-heart" aria-hidden="true" />
                   Health Partner
                 </button>
                 <button
                   onClick={() => setActiveTab('chat')}
                   className="flex items-center justify-center gap-2 p-4 border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-colors"
                 >
-                  <span>💬</span>
+                  <i className="fa-solid fa-comments" aria-hidden="true" />
                   General Chat
                 </button>
               </div>

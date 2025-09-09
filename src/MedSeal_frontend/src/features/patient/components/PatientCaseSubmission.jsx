@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
 import Card from '../../../shared/components/Card';
 import Button from '../../../shared/components/Button';
+import FAIcon from '../../../components/FAIcon';
 
 function PatientCaseSubmission({ onSuccess }) {
   const { authenticatedActor } = useAuth();
@@ -237,7 +238,7 @@ function PatientCaseSubmission({ onSuccess }) {
                       onClick={() => removeDocument(index)}
                       className="text-red-600 hover:text-red-700 ml-2"
                     >
-                      ✕
+                      <FAIcon name="times" />
                     </button>
                   </div>
                 ))}
@@ -247,15 +248,15 @@ function PatientCaseSubmission({ onSuccess }) {
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-start">
-              <span className="text-blue-600 text-xl mr-3">ℹ️</span>
-              <div>
-                <h3 className="text-sm font-medium text-blue-900 mb-1">Review Process</h3>
-                <p className="text-sm text-blue-700">
-                  Your case will be reviewed by our administrators. Once approved, verified NGOs can create contribution campaigns to help with your medical needs.
-                </p>
-              </div>
-            </div>
-          </div>
+              <FAIcon name="info-circle" className="text-blue-600 text-xl mr-3" />
+               <div>
+                 <h3 className="text-sm font-medium text-blue-900 mb-1">Review Process</h3>
+                 <p className="text-sm text-blue-700">
+                   Your case will be reviewed by our administrators. Once approved, verified NGOs can create contribution campaigns to help with your medical needs.
+                 </p>
+               </div>
+             </div>
+           </div>
 
           <Button
             type="submit"

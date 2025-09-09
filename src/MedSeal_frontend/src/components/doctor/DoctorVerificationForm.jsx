@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import Card from '../../shared/components/Card';
 import Button from '../../shared/components/Button';
 import { useAuth } from '../../hooks/useAuth';
+import FAIcon from '../FAIcon';
 
 function DoctorVerificationForm({ onSuccess, existingRequest }) {
   const { authenticatedActor } = useAuth();
@@ -157,7 +158,7 @@ function DoctorVerificationForm({ onSuccess, existingRequest }) {
         )}
       </div>
 
-      <Card title="Professional Information" icon="👨‍⚕️">
+      <Card title="Professional Information" icon={<FAIcon name="user-md" className="text-2xl" />}>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -306,7 +307,7 @@ function DoctorVerificationForm({ onSuccess, existingRequest }) {
                       onClick={() => removeDocument(index)}
                       className="text-red-600 hover:text-red-700 ml-2"
                     >
-                      ✕
+                      <FAIcon name="times" />
                     </button>
                   </div>
                 ))}

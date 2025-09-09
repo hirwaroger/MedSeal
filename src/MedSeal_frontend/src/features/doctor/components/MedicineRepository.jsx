@@ -36,7 +36,7 @@ function MedicineRepository({
         ) : medicines.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200">
             <div className="text-center py-12">
-              <div className="text-6xl mb-6">💊</div>
+              <div className="text-6xl mb-6"><i className="fa-solid fa-pills" aria-hidden="true" /></div>
               <h3 className="text-xl font-semibold text-gray-500 mb-2">No Medicines Added</h3>
               <p className="text-gray-500 mb-6">Start building your medicine repository with OCR-powered guides</p>
               <button 
@@ -70,7 +70,7 @@ function MedicineRepository({
                         className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                         title="View Guide"
                       >
-                        <span className="text-sm">👁️</span>
+                        <i className="fa-solid fa-eye text-sm" aria-hidden="true" />
                       </button>
                     )}
                     <button
@@ -79,14 +79,14 @@ function MedicineRepository({
                       className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Add to Prescription"
                     >
-                      <span className="text-sm">➕</span>
+                      <i className="fa-solid fa-plus text-sm" aria-hidden="true" />
                     </button>
                     <button
                       onClick={() => onToggleStatus(medicine.id, medicine.is_active)}
                       className="p-2 text-gray-500 hover:text-yellow-600 hover:bg-yellow-50 rounded transition-colors"
                       title={medicine.is_active ? 'Deactivate' : 'Activate'}
                     >
-                      <span className="text-sm">{medicine.is_active ? '⏸️' : '▶️'}</span>
+                      <i className={`fa-solid ${medicine.is_active ? 'fa-pause' : 'fa-play'}`} aria-hidden="true" />
                     </button>
                   </div>
                 </div>

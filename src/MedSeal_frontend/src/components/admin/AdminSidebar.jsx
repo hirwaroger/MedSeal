@@ -2,12 +2,12 @@ import React from 'react';
 
 function AdminSidebar({ activeTab, setActiveTab, sidebarCollapsed, setSidebarCollapsed, user }) {
   const sidebarItems = [
-    { id: 'overview', icon: '📊', label: 'Admin Overview' },
-    { id: 'doctors', icon: '👨‍⚕️', label: 'Manage Doctors' },
-    { id: 'patients', icon: '👥', label: 'Manage Patients' },
-    { id: 'verification', icon: '✅', label: 'Doctor Verification' },
-    { id: 'system', icon: '⚙️', label: 'System Settings' },
-    { id: 'analytics', icon: '📈', label: 'Analytics' }
+    { id: 'overview', icon: <i className="fa-solid fa-chart-pie"></i>, label: 'Admin Overview' },
+    { id: 'doctors', icon: <i className="fa-solid fa-user-doctor"></i>, label: 'Manage Doctors' },
+    { id: 'patients', icon: <i className="fa-solid fa-users"></i>, label: 'Manage Patients' },
+    { id: 'verification', icon: <i className="fa-solid fa-shield-check"></i>, label: 'Doctor Verification' },
+    { id: 'system', icon: <i className="fa-solid fa-gear"></i>, label: 'System Settings' },
+    { id: 'analytics', icon: <i className="fa-solid fa-chart-line"></i>, label: 'Analytics' }
   ];
 
   return (
@@ -59,7 +59,7 @@ function AdminSidebar({ activeTab, setActiveTab, sidebarCollapsed, setSidebarCol
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
           className="w-full text-white hover:bg-white/20 rounded p-2 transition-colors"
         >
-          {sidebarCollapsed ? '→' : '←'}
+          {sidebarCollapsed ? <i className="fa-solid fa-arrow-right"></i> : <i className="fa-solid fa-arrow-left"></i>}
         </button>
       </div>
     </div>

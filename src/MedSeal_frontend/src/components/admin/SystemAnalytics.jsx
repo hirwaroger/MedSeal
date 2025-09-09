@@ -36,7 +36,7 @@ function SystemAnalytics() {
   if (!overview) {
     return (
       <div className="text-center py-12">
-        <div className="text-6xl mb-4">📊</div>
+        <div className="text-6xl mb-4"><i className="fa-solid fa-chart-simple"></i></div>
         <h3 className="text-xl font-semibold text-gray-500 mb-2">No data available</h3>
         <p className="text-gray-500">System analytics will appear here.</p>
       </div>
@@ -47,37 +47,37 @@ function SystemAnalytics() {
     {
       name: 'Total Doctors',
       value: Number(overview.total_doctors),
-      icon: '👨‍⚕️',
+      icon: <i className="fa-solid fa-user-doctor"></i>,
       color: 'blue'
     },
     {
       name: 'Total Patients',
       value: Number(overview.total_patients),
-      icon: '🤒',
+      icon: <i className="fa-solid fa-users"></i>,
       color: 'green'
     },
     {
       name: 'Verified Doctors',
       value: Number(overview.verified_doctors),
-      icon: '✅',
+      icon: <i className="fa-solid fa-check"></i>,
       color: 'purple'
     },
     {
       name: 'Pending Verifications',
       value: Number(overview.pending_verifications),
-      icon: '⏳',
+      icon: <i className="fa-solid fa-hourglass-half"></i>,
       color: 'yellow'
     },
     {
       name: 'Total Prescriptions',
       value: Number(overview.total_prescriptions),
-      icon: '💊',
+      icon: <i className="fa-solid fa-file-prescription"></i>,
       color: 'indigo'
     },
     {
       name: 'Total Medicines',
       value: Number(overview.total_medicines),
-      icon: '🧪',
+      icon: <i className="fa-solid fa-pills"></i>,
       color: 'pink'
     }
   ];

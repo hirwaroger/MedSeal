@@ -1,4 +1,5 @@
 import { useState } from 'react';
+
 import { useMedicine } from '../features/doctor/hooks/useMedicine';
 import { usePrescription } from '../features/doctor/hooks/usePrescription';
 import { useAuth } from '../hooks/useAuth';
@@ -129,15 +130,15 @@ function DoctorDashboard({ user, showAlert }) {
   };
 
   const sidebarItems = [
-    { id: 'overview', icon: '📊', label: 'Dashboard Overview' },
-    { id: 'medicines', icon: '💊', label: `Medicine Repository (${medicines.length})` },
-    { id: 'add-medicine', icon: '➕', label: 'Add New Medicine' },
-    { id: 'prescriptions', icon: '📋', label: 'Create Prescription' },
-    { id: 'history', icon: '📚', label: `Prescription History (${prescriptions.length})` },
-    { 
-      id: 'verification', 
-      icon: user.verification_status === 'Approved' ? '✅' : user.verification_status === 'Pending' ? '⏳' : '🔍', 
-      label: getVerificationLabel() 
+    { id: 'overview', icon: <i className="fa-solid fa-chart-bar" aria-hidden="true" />, label: 'Dashboard Overview' },
+    { id: 'medicines', icon: <i className="fa-solid fa-pills" aria-hidden="true" />, label: `Medicine Repository (${medicines.length})` },
+    { id: 'add-medicine', icon: <i className="fa-solid fa-plus" aria-hidden="true" />, label: 'Add New Medicine' },
+    { id: 'prescriptions', icon: <i className="fa-solid fa-clipboard-list" aria-hidden="true" />, label: 'Create Prescription' },
+    { id: 'history', icon: <i className="fa-solid fa-book" aria-hidden="true" />, label: `Prescription History (${prescriptions.length})` },
+    {
+      id: 'verification',
+      icon: user.verification_status === 'Approved' ? <i className="fa-solid fa-check-circle" aria-hidden="true" /> : user.verification_status === 'Pending' ? <i className="fa-solid fa-hourglass-half" aria-hidden="true" /> : <i className="fa-solid fa-search" aria-hidden="true" />,
+      label: getVerificationLabel()
     },
   ];
 
@@ -347,7 +348,7 @@ function DoctorDashboard({ user, showAlert }) {
         onClick={() => setShowAIWidget(!showAIWidget)}
         className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center z-30"
       >
-        <span className="text-xl">🤖</span>
+        <span className="text-xl"><i className="fa-solid fa-robot" aria-hidden="true" /></span>
       </button>
 
       {/* AI Widget */}
@@ -356,7 +357,7 @@ function DoctorDashboard({ user, showAlert }) {
           <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-4 rounded-t-lg flex justify-between items-center">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                <span>🤖</span>
+                <i className="fa-solid fa-robot" aria-hidden="true" />
               </div>
               <div>
                 <h3 className="font-semibold">AI Medical Assistant</h3>
@@ -367,7 +368,7 @@ function DoctorDashboard({ user, showAlert }) {
               onClick={() => setShowAIWidget(false)}
               className="text-white hover:bg-white/20 rounded p-1"
             >
-              <span>✕</span>
+              <i className="fa-solid fa-xmark" aria-hidden="true" />
             </button>
           </div>
           <div className="p-4">
@@ -379,21 +380,21 @@ function DoctorDashboard({ user, showAlert }) {
                 onClick={() => openAIAssistant(null, 'general')}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
               >
-                <span>💬</span>
+                <i className="fa-solid fa-comments" aria-hidden="true" />
                 General Medical Chat
               </button>
               <button 
                 onClick={() => openAIAssistant({ medicines: medicines.filter(m => m.is_active) }, 'medicine')}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
               >
-                <span>💊</span>
+                <i className="fa-solid fa-pills" aria-hidden="true" />
                 Medicine Consultation
               </button>
               <button 
                 onClick={() => openAIAssistant(null, 'medicine-recommendation')}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
               >
-                <span>🎯</span>
+                <i className="fa-solid fa-bullseye" aria-hidden="true" />
                 Medicine Recommendations
               </button>
             </div>

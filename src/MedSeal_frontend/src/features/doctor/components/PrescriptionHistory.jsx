@@ -51,7 +51,7 @@ function PrescriptionHistory({ prescriptions, onTabChange, showAlert }) {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
           {prescriptions.length === 0 ? (
             <div className="text-center py-12">
-              <div className="text-6xl mb-6">📋</div>
+              <div className="text-6xl mb-6"><i className="fa-solid fa-clipboard-list" aria-hidden="true" /></div>
               <h3 className="text-xl font-semibold text-gray-500 mb-2">No Prescriptions Created</h3>
               <p className="text-gray-500 mb-6">Start creating prescriptions for your patients</p>
               <button 
@@ -64,7 +64,7 @@ function PrescriptionHistory({ prescriptions, onTabChange, showAlert }) {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -134,7 +134,7 @@ function PrescriptionHistory({ prescriptions, onTabChange, showAlert }) {
                           className="text-blue-600 hover:text-blue-700"
                           title="Copy prescription code"
                         >
-                          📋
+                          <i className="fa-solid fa-clipboard" aria-hidden="true" />
                         </button>
                       </td>
                     </tr>

@@ -317,7 +317,9 @@ function AddMedicineForm({ onSubmit, onTabChange, loading, showAlert }) {
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center bg-gray-50">
                 {!medicineForm.guide_file ? (
                   <>
-                    <div className="text-6xl mb-4">📄</div>
+                    <div className="text-6xl mb-4">
+                      <i className="fa-solid fa-file-pdf" aria-hidden="true" />
+                    </div>
                     <h4 className="text-lg font-semibold text-gray-900 mb-2">
                       Drop your PDF file here or click to browse
                     </h4>
@@ -336,7 +338,7 @@ function AddMedicineForm({ onSubmit, onTabChange, loading, showAlert }) {
                 ) : (
                   <div>
                     <div className="flex items-center justify-center mb-4">
-                      <span className="text-red-600 text-2xl mr-2">📄</span>
+                      <span className="text-red-600 text-2xl mr-2"><i className="fa-solid fa-file-pdf" aria-hidden="true" /></span>
                       <span className="font-semibold text-gray-900">{medicineForm.guide_file.name}</span>
                       <span className="text-gray-500 ml-2">({getFileSize(medicineForm.guide_file)})</span>
                       {!medicineForm.extracting && (
@@ -426,7 +428,8 @@ function AddMedicineForm({ onSubmit, onTabChange, loading, showAlert }) {
                   </>
                 ) : (
                   <>
-                    💾 Add Medicine
+                    <i className="fa-solid fa-floppy-disk mr-2" aria-hidden="true" />
+                    Add Medicine
                   </>
                 )}
               </button>
@@ -437,7 +440,8 @@ function AddMedicineForm({ onSubmit, onTabChange, loading, showAlert }) {
                 disabled={loading || medicineForm.extracting || isSubmitting}
                 className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                🗑️ Clear Form
+                <i className="fa-solid fa-trash mr-2" aria-hidden="true" />
+                Clear Form
               </button>
             </div>
           </form>
