@@ -5,9 +5,77 @@ function Navbar({ user, onLogout }) {
   useFavicon('/favicon.png');
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const isDoctor = user.role === 'Doctor' || 
-                  (typeof user.role === 'object' && user.role.Doctor !== undefined) ||
-                  user.role.Doctor === null;
+  const KNOWN_ROLES = ['Doctor', 'Patient', 'NGO', 'Admin'];
+
+  function detectRole(role) {
+    if (!role) return 'Patient';
+    if (typeof role === 'string') {
+      const found = KNOWN_ROLES.find(r => r.toLowerCase() === role.toLowerCase());
+      return found || role;
+    }
+    if (typeof role === 'object') {
+      // common property names
+      if (typeof role.role === 'string') {
+        const found = KNOWN_ROLES.find(r => r.toLowerCase() === role.role.toLowerCase());
+        return found || role.role;
+      }
+      if (typeof role.type === 'string') {
+        const found = KNOWN_ROLES.find(r => r.toLowerCase() === role.type.toLowerCase());
+        return found || role.type;
+      }
+      if (typeof role.name === 'string') {
+        const found = KNOWN_ROLES.find(r => r.toLowerCase() === role.name.toLowerCase());
+        return found || role.name;
+      }
+      // check keys like { Doctor: {...} }
+      for (const r of KNOWN_ROLES) {
+        if (r in role) return r;
+      }
+    }
+    return 'Patient';
+  }
+
+  const role = detectRole(user?.role);
+  const isDoctor = role === 'Doctor';
+  const isNGO = role === 'NGO';
+  const isAdmin = role === 'Admin';
+  const isPatient = role === 'Patient';
+
+  function RoleIcon({ size = 20 }) {
+    // simple icons for each role
+    if (isDoctor) {
+      // check/medical icon
+      return (
+        <svg className={`w-${size/4} h-${size/4}`} fill="currentColor" viewBox="0 0 20 20">
+          <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      );
+    }
+    if (isNGO) {
+      // globe icon
+      return (
+        <svg className={`w-${size/4} h-${size/4}`} fill="currentColor" viewBox="0 0 20 20">
+          <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 2.07A6.002 6.002 0 0116.93 9H11V4.07zM9 4v5H3.07A6.002 6.002 0 019 4.07V4zM3.07 11H9v5.93A6.002 6.002 0 013.07 11zM11 16.93V11h5.93A6.002 6.002 0 0111 16.93z" />
+        </svg>
+      );
+    }
+    if (isAdmin) {
+      // shield/star icon
+      return (
+        <svg className={`w-${size/4} h-${size/4}`} fill="currentColor" viewBox="0 0 20 20">
+          <path d="M10 2l6 3v4c0 5-3.58 8.74-6 9-2.42-.26-6-4-6-9V5l6-3zM9 8l1 3 2 .5-2 1.5L10 16l-1.5-3.5L6 11l2-.5L9 8z" />
+        </svg>
+      );
+    }
+    // patient default (user)
+    return (
+      <svg className={`w-5 h-5`} fill="currentColor" viewBox="0 0 20 20">
+        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+      </svg>
+    );
+  }
+
+  const roleLabel = isDoctor ? 'Doctor' : isNGO ? 'NGO' : isAdmin ? 'Admin' : 'Patient';
 
   return (
     <nav className="bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg relative z-40">
@@ -15,7 +83,6 @@ function Navbar({ user, onLogout }) {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex items-center space-x-3">
-            {/* Replaced SVG block with favicon image */}
             <img
               src="/favicon.png"
               alt="MedSeal"
@@ -24,7 +91,7 @@ function Navbar({ user, onLogout }) {
             />
             <h1 className="text-xl font-bold text-white">MedSeal</h1>
           </div>
-          
+
           {/* User Menu */}
           <div className="relative">
             <button
@@ -33,18 +100,12 @@ function Navbar({ user, onLogout }) {
             >
               <div className="flex items-center space-x-3">
                 <div className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center ring-2 ring-white/30">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    {isDoctor ? (
-                      <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    ) : (
-                      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                    )}
-                  </svg>
+                  <RoleIcon size={20} />
                 </div>
                 <div className="text-left">
-                  <div className="font-semibold text-white">{user.name}</div>
+                  <div className="font-semibold text-white">{user?.name || 'Unknown'}</div>
                   <div className="text-xs bg-white/25 text-white px-2 py-0.5 rounded-full font-medium">
-                    {isDoctor ? 'Doctor' : 'Patient'}
+                    {roleLabel}
                   </div>
                 </div>
               </div>
@@ -52,37 +113,33 @@ function Navbar({ user, onLogout }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
-            
+
             {/* Dropdown Menu */}
             {menuOpen && (
               <>
                 {/* Backdrop */}
-                <div 
-                  className="fixed inset-0 z-10" 
+                <div
+                  className="fixed inset-0 z-10"
                   onClick={() => setMenuOpen(false)}
                 />
-                
+
                 {/* Menu */}
                 <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-200 z-20 overflow-hidden">
                   <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-sky-50">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Account Information</p>
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
-                        <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          {isDoctor ? (
-                            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          ) : (
-                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                          )}
-                        </svg>
+                        <RoleIcon size={20} />
                       </div>
                       <div>
-                        <p className="font-semibold text-gray-900">{user.name}</p>
-                        <p className="text-sm text-blue-600 font-medium">{isDoctor ? 'Healthcare Provider' : 'Patient'}</p>
+                        <p className="font-semibold text-gray-900">{user?.name || 'Unknown'}</p>
+                        <p className="text-sm text-blue-600 font-medium">
+                          {isDoctor ? 'Healthcare Provider' : isNGO ? 'Organization (NGO)' : isAdmin ? 'Administrator' : 'Patient'}
+                        </p>
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="py-2">
                     <div className="px-6 py-3 flex items-center space-x-3 hover:bg-gray-50 transition-colors">
                       <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
@@ -91,11 +148,11 @@ function Navbar({ user, onLogout }) {
                       </svg>
                       <div>
                         <p className="text-sm font-medium text-gray-700">Email</p>
-                        <p className="text-xs text-gray-500">{user.email}</p>
+                        <p className="text-xs text-gray-500">{user?.email || '—'}</p>
                       </div>
                     </div>
-                    
-                    {isDoctor && user.license_number && user.license_number.trim() !== "" && (
+
+                    {isDoctor && user?.license_number && user.license_number.trim() !== "" && (
                       <div className="px-6 py-3 flex items-center space-x-3 hover:bg-gray-50 transition-colors">
                         <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -113,11 +170,11 @@ function Navbar({ user, onLogout }) {
                       </svg>
                       <div>
                         <p className="text-sm font-medium text-gray-700">User Type</p>
-                        <p className="text-xs text-gray-500">{isDoctor ? 'Healthcare Provider' : 'Patient Account'}</p>
+                        <p className="text-xs text-gray-500">{roleLabel}</p>
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="border-t border-gray-200">
                     <button
                       onClick={() => {

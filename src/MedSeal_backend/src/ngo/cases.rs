@@ -301,3 +301,21 @@ pub fn get_user_contributions() -> Result<Vec<Contribution>> {
     let caller_principal = caller().to_string();
     Ok(storage::get_contributions_by_user(&caller_principal))
 }
+
+#[ic_cdk::query]
+pub fn get_my_patient_cases() -> Result<Vec<PatientCase>> {
+    let caller_principal = caller().to_string();
+    
+    let user = storage::get_user_by_principal(&caller_principal)
+        .ok_or("User not found".to_string())?;
+    
+    match user.role {
+        UserRole::Patient => {
+            Ok(storage::get_patient_cases_by_patient(&user.id))
+        }
+        UserRole::Admin => {
+            Ok(storage::get_all_patient_cases())
+        }
+        _ => Err("Access denied".to_string()),
+    }
+}

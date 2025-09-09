@@ -323,6 +323,16 @@ pub fn get_patient_cases_by_status(status: CaseStatus) -> Vec<PatientCase> {
     })
 }
 
+pub fn get_patient_cases_by_patient(patient_id: &str) -> Vec<PatientCase> {
+    PATIENT_CASES.with(|cases| {
+        cases.borrow()
+            .values()
+            .filter(|case| case.patient_id == patient_id)
+            .cloned()
+            .collect()
+    })
+}
+
 // Contribution Pool functions
 pub fn store_contribution_pool(pool: ContributionPool) {
     CONTRIBUTION_POOLS.with(|pools| {

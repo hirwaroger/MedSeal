@@ -23,30 +23,13 @@ pub fn generate_medicine_id() -> String {
 }
 
 pub fn generate_prescription_id() -> String {
-    generate_id("presc")
+    generate_id("prescription")
 }
 
 pub fn generate_prescription_code() -> String {
-    let timestamp = time();
-    let caller = ic_cdk::caller().to_string();
-    
-    let mut hasher = DefaultHasher::new();
-    timestamp.hash(&mut hasher);
-    caller.hash(&mut hasher);
-    let hash = hasher.finish();
-    
-    // Generate a 8-character alphanumeric code
-    let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    let mut code = String::new();
-    let mut temp_hash = hash;
-    
-    for _ in 0..8 {
-        let index = (temp_hash % chars.len() as u64) as usize;
-        code.push(chars.chars().nth(index).unwrap());
-        temp_hash /= chars.len() as u64;
-    }
-    
-    code
+    let timestamp = get_current_timestamp();
+    let random = timestamp % 999999;
+    format!("RX{:06}", random)
 }
 
 pub fn generate_verification_hash() -> String {
