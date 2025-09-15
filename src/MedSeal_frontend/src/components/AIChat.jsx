@@ -132,7 +132,8 @@ I can recommend appropriate medicines from your repository and suggest dosages, 
     if (!authenticatedActor) {
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: 'Backend connection not available. Please refresh the page and try again.'
+        content: '❌ **Connection Error**: Backend connection not available. Please refresh the page and try again.',
+        isError: true
       }]);
       return;
     }
@@ -200,9 +201,26 @@ I can recommend appropriate medicines from your repository and suggest dosages, 
         }]);
       } else if (result && typeof result === 'object' && 'Err' in result) {
         console.error('Backend error response:', result.Err);
+        
+        let errorMessage = '⚠️ **AI Assistant Error**: ';
+        const errorStr = result.Err;
+        
+        if (errorStr.includes('User not found')) {
+          errorMessage += 'Authentication issue. Please refresh the page and try again.';
+        } else if (errorStr.includes('Network')) {
+          errorMessage += 'Network connection problem. Please check your internet connection.';
+        } else if (errorStr.includes('Invalid')) {
+          errorMessage += 'Data format issue. Please try refreshing the page.';
+        } else if (errorStr.includes('timeout')) {
+          errorMessage += 'Request timed out. Please try again with a shorter message.';
+        } else {
+          errorMessage += `${errorStr}. Please try again or contact support if the issue persists.`;
+        }
+        
         setMessages(prev => [...prev, {
           role: 'assistant',
-          content: 'I apologize, but I encountered an error: ' + result.Err + '. Please try again.'
+          content: errorMessage,
+          isError: true
         }]);
       } else if (typeof result === 'string') {
         console.log('Direct string response:', result);
@@ -214,31 +232,37 @@ I can recommend appropriate medicines from your repository and suggest dosages, 
         console.error('Unexpected response format:', result);
         setMessages(prev => [...prev, {
           role: 'assistant',
-          content: 'I received an unexpected response format. Please try again.'
+          content: '🔧 **Unexpected Response**: I received an unexpected response format. Please try again or refresh the page if the issue persists.',
+          isError: true
         }]);
       }
     } catch (error) {
       console.error('AI Chat Error:', error);
       
-      let errorMessage = 'I\'m sorry, I\'m having trouble connecting right now. ';
+      let errorMessage = '🚫 **Chat Error**: ';
       
       if (error.message && error.message.includes('Invalid record')) {
-        errorMessage = 'Data format error. Please try refreshing the page and try again.';
+        errorMessage += 'Data format error. Please refresh the page and try again.';
       } else if (error.message && error.message.includes('not a function')) {
-        errorMessage = 'AI assistant is temporarily unavailable. Please try again later.';
+        errorMessage += 'AI assistant is temporarily unavailable. Please try again later.';
       } else if (error.message && error.message.includes('Network')) {
-        errorMessage = 'Network connection issue. Please check your connection and try again.';
+        errorMessage += 'Network connection issue. Please check your connection and try again.';
       } else if (error.message && error.message.includes('User not found')) {
-        errorMessage = 'Authentication error. Please refresh the page and try again.';
+        errorMessage += 'Authentication error. Please refresh the page and try again.';
+      } else if (error.message && error.message.includes('timeout')) {
+        errorMessage += 'Request timed out. Please try with a shorter message or try again later.';
+      } else if (error.name === 'TypeError') {
+        errorMessage += 'Technical issue occurred. Please refresh the page and try again.';
       } else if (error.message) {
-        errorMessage += 'Error: ' + error.message + ' Please try again in a moment.';
+        errorMessage += `${error.message}. Please try again in a moment.`;
       } else {
-        errorMessage += 'Please try again in a moment.';
+        errorMessage += 'An unexpected error occurred. Please try again in a moment or refresh the page.';
       }
       
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: errorMessage
+        content: errorMessage,
+        isError: true
       }]);
     } finally {
       setIsLoading(false);
@@ -367,7 +391,13 @@ I can recommend appropriate medicines from your repository and suggest dosages, 
             {messages.map((message, index) => (
               <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[85%] sm:max-w-[78%] ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
-                  <div className={`inline-block px-3 sm:px-4 py-2 sm:py-3 rounded-xl shadow ${message.role === 'user' ? 'bg-gradient-to-br from-blue-600 to-sky-500 text-white' : 'bg-white border border-gray-100 text-gray-800'}`}>
+                  <div className={`inline-block px-3 sm:px-4 py-2 sm:py-3 rounded-xl shadow ${
+                    message.role === 'user' 
+                      ? 'bg-gradient-to-br from-blue-600 to-sky-500 text-white' 
+                      : message.isError 
+                        ? 'bg-red-50 border border-red-200 text-red-800'
+                        : 'bg-white border border-gray-100 text-gray-800'
+                  }`}>
                     {message.role === 'assistant' ? (
                       <div className="prose prose-sm max-w-none text-sm sm:text-base" dangerouslySetInnerHTML={{ __html: parseMarkdown(message.content) }} />
                     ) : (

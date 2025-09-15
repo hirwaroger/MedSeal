@@ -165,7 +165,12 @@ export const usePrescription = (showAlert) => {
 
   const fetchPrescription = async (prescriptionId, code) => {
     if (!authenticatedActor) {
-      showAlert('error', 'Backend connection not available');
+      showAlert('error', 'Backend connection not available. Please refresh the page and try again.');
+      return false;
+    }
+
+    if (!prescriptionId || !code) {
+      showAlert('error', 'Both prescription ID and code are required');
       return false;
     }
 
@@ -174,66 +179,127 @@ export const usePrescription = (showAlert) => {
     
     try {
       console.log('LOG: Fetching prescription with ID:', prescriptionId, 'Code:', code);
+      console.log('LOG: Using authenticated actor:', !!authenticatedActor);
       
-      const result = await authenticatedActor.get_prescription(prescriptionId, code);
-      console.log('LOG: Fetch prescription result:', result);
+      let result;
+      try {
+        // Try the updated get_prescription method with separate arguments
+        console.log('LOG: Calling get_prescription with separate arguments');
+        result = await authenticatedActor.get_prescription(prescriptionId, code);
+        console.log('LOG: get_prescription result:', result);
+      } catch (firstError) {
+        console.log('LOG: get_prescription failed, trying get_prescription_by_code:', firstError);
+        
+        // If that fails, try get_prescription_by_code with combined format
+        const combinedCode = `${prescriptionId}-${code}`;
+        try {
+          const directResult = await authenticatedActor.get_prescription_by_code(combinedCode);
+          if (directResult && directResult.length > 0) {
+            result = { Ok: directResult[0] };
+          } else if (directResult) {
+            result = { Ok: directResult };
+          } else {
+            throw new Error('Prescription not found');
+          }
+          console.log('LOG: get_prescription_by_code result:', result);
+        } catch (secondError) {
+          console.log('LOG: Both methods failed, trying legacy method');
+          // Last resort: try with patient contact (legacy)
+          try {
+            result = await authenticatedActor.get_prescription_legacy(prescriptionId, code);
+          } catch (thirdError) {
+            throw firstError; // Throw the original error
+          }
+        }
+      }
       
-      if ('Ok' in result) {
-        const prescriptionData = result.Ok;
-        // Unwrap optional accessed_at if array
-        prescriptionData.accessed_at = unwrapOptNat64(prescriptionData.accessed_at);
-        console.log('LOG: Prescription fetched successfully:', prescriptionData);
-        
-        // Normalize prescription data immediately to handle BigInt timestamps
-        const normalizedPrescription = normalizePrescriptionData(prescriptionData);
-        console.log('LOG: Normalized prescription data:', normalizedPrescription);
-        
-        // Get medicine details for each medicine in the prescription
-        const medicinesWithDetails = await Promise.all(
-          prescriptionData.medicines.map(async (prescriptionMedicine) => {
+      console.log('LOG: Final fetch prescription result:', result);
+      
+      // Handle Result<Prescription, String> format
+      let prescriptionData = null;
+      if (result && 'Ok' in result) {
+        prescriptionData = result.Ok;
+      } else if (result && typeof result === 'object' && !('Err' in result)) {
+        // Direct prescription object
+        prescriptionData = result;
+      } else if (result && 'Err' in result) {
+        console.error('LOG: Backend returned error:', result.Err);
+        setError(result.Err);
+        showAlert('error', result.Err);
+        return false;
+      }
+      
+      if (!prescriptionData) {
+        console.error('LOG: No prescription data found');
+        setError('Prescription not found');
+        showAlert('error', 'Prescription not found. Please check the prescription ID and code.');
+        return false;
+      }
+      
+      // Unwrap optional accessed_at if array
+      prescriptionData.accessed_at = unwrapOptNat64(prescriptionData.accessed_at);
+      console.log('LOG: Prescription fetched successfully:', prescriptionData);
+      
+      // Normalize prescription data immediately to handle BigInt timestamps
+      const normalizedPrescription = normalizePrescriptionData(prescriptionData);
+      console.log('LOG: Normalized prescription data:', normalizedPrescription);
+      
+      // Get medicine details for each medicine in the prescription
+      const medicinesWithDetails = await Promise.all(
+        prescriptionData.medicines.map(async (prescriptionMedicine) => {
+          try {
+            console.log('LOG: Fetching medicine for ID:', prescriptionMedicine.medicine_id);
+            
+            let medicineResult;
             try {
-              const medicineResult = await authenticatedActor.get_medicine(prescriptionMedicine.medicine_id);
-              console.log('LOG: Fetched medicine:', medicineResult, 'for ID:', prescriptionMedicine.medicine_id);
-              
-              // Handle case where backend returns an array or single object
-              let medicine = null;
-              if (Array.isArray(medicineResult) && medicineResult.length > 0) {
-                medicine = medicineResult[0];
-              } else if (medicineResult && !Array.isArray(medicineResult)) {
-                medicine = medicineResult;
+              // Try direct medicine lookup
+              medicineResult = await authenticatedActor.get_medicine?.(prescriptionMedicine.medicine_id);
+            } catch (medicineError) {
+              console.log('LOG: get_medicine failed, trying get_all_medicines');
+              // If get_medicine doesn't exist, try getting all medicines and find the one we need
+              try {
+                const allMedicines = await authenticatedActor.get_all_medicines();
+                medicineResult = allMedicines.find(m => m.id === prescriptionMedicine.medicine_id);
+              } catch (allMedicinesError) {
+                console.error('LOG: Failed to get medicines:', allMedicinesError);
+                medicineResult = null;
               }
+            }
+            
+            console.log('LOG: Fetched medicine result:', medicineResult, 'for ID:', prescriptionMedicine.medicine_id);
+            
+            // Handle case where backend returns different formats
+            let medicine = null;
+            if (medicineResult && 'Ok' in medicineResult) {
+              medicine = medicineResult.Ok;
+            } else if (Array.isArray(medicineResult) && medicineResult.length > 0) {
+              medicine = medicineResult[0];
+            } else if (medicineResult && !Array.isArray(medicineResult) && typeof medicineResult === 'object') {
+              medicine = medicineResult;
+            }
+            
+            if (medicine) {
+              // Normalize medicine data
+              const normalizedMedicine = normalizeMedicineData(medicine);
               
-              if (medicine) {
-                // Normalize medicine data
-                const normalizedMedicine = normalizeMedicineData(medicine);
-                
-                return {
-                  medicine_id: prescriptionMedicine.medicine_id,
-                  custom_dosage: prescriptionMedicine.custom_dosage || null,
-                  custom_instructions: prescriptionMedicine.custom_instructions || '',
-                  medicine: {
-                    id: normalizedMedicine.id,
-                    name: normalizedMedicine.name,
-                    dosage: normalizedMedicine.dosage,
-                    frequency: normalizedMedicine.frequency,
-                    duration: normalizedMedicine.duration,
-                    side_effects: normalizedMedicine.side_effects,
-                    guide_text: normalizedMedicine.guide_text,
-                    is_active: normalizedMedicine.is_active,
-                    created_at: normalizedMedicine.created_at
-                  }
-                };
-              } else {
-                console.warn('LOG: Medicine not found for ID:', prescriptionMedicine.medicine_id);
-                return {
-                  medicine_id: prescriptionMedicine.medicine_id,
-                  custom_dosage: prescriptionMedicine.custom_dosage || null,
-                  custom_instructions: prescriptionMedicine.custom_instructions || '',
-                  medicine: null
-                };
-              }
-            } catch (error) {
-              console.error('LOG: Error fetching medicine for ID:', prescriptionMedicine.medicine_id, error);
+              return {
+                medicine_id: prescriptionMedicine.medicine_id,
+                custom_dosage: prescriptionMedicine.custom_dosage || null,
+                custom_instructions: prescriptionMedicine.custom_instructions || '',
+                medicine: {
+                  id: normalizedMedicine.id,
+                  name: normalizedMedicine.name,
+                  dosage: normalizedMedicine.dosage,
+                  frequency: normalizedMedicine.frequency,
+                  duration: normalizedMedicine.duration,
+                  side_effects: normalizedMedicine.side_effects,
+                  guide_text: normalizedMedicine.guide_text,
+                  is_active: normalizedMedicine.is_active,
+                  created_at: normalizedMedicine.created_at
+                }
+              };
+            } else {
+              console.warn('LOG: Medicine not found for ID:', prescriptionMedicine.medicine_id);
               return {
                 medicine_id: prescriptionMedicine.medicine_id,
                 custom_dosage: prescriptionMedicine.custom_dosage || null,
@@ -241,36 +307,61 @@ export const usePrescription = (showAlert) => {
                 medicine: null
               };
             }
-          })
-        );
-        
-        console.log('LOG: All medicine details processed:', medicinesWithDetails);
-        console.log('LOG: Medicine details count:', medicinesWithDetails.length);
-        
-        // Set normalized data in state
-        setPrescription(normalizedPrescription);
-        setMedicines(medicinesWithDetails);
-        
-        console.log('LOG: State updated - prescription set');
-        console.log('LOG: State updated - medicines set to count:', medicinesWithDetails.length);
-        
-        // Save to history with normalized data
-        savePrescriptionToHistory(normalizedPrescription, medicinesWithDetails);
-        
-        showAlert('success', 'Prescription loaded successfully!');
-        return true;
-      } else {
-        console.error('LOG: Failed to fetch prescription:', result.Err);
-        const errorMessage = result.Err;
-        setError(errorMessage);
-        showAlert('error', 'Error: ' + errorMessage);
-        return false;
-      }
+          } catch (error) {
+            console.error('LOG: Error fetching medicine for ID:', prescriptionMedicine.medicine_id, error);
+            return {
+              medicine_id: prescriptionMedicine.medicine_id,
+              custom_dosage: prescriptionMedicine.custom_dosage || null,
+              custom_instructions: prescriptionMedicine.custom_instructions || '',
+              medicine: null
+            };
+          }
+        })
+      );
+      
+      console.log('LOG: All medicine details processed:', medicinesWithDetails);
+      console.log('LOG: Medicine details count:', medicinesWithDetails.length);
+      
+      // Set normalized data in state
+      setPrescription(normalizedPrescription);
+      setMedicines(medicinesWithDetails);
+      
+      console.log('LOG: State updated - prescription set');
+      console.log('LOG: State updated - medicines set to count:', medicinesWithDetails.length);
+      
+      // Save to history with normalized data
+      savePrescriptionToHistory(normalizedPrescription, medicinesWithDetails);
+      
+      return true;
     } catch (error) {
       console.error('LOG: Error fetching prescription:', error);
       const errorMessage = error.message || 'Failed to fetch prescription';
       setError(errorMessage);
-      showAlert('error', 'Error fetching prescription: ' + errorMessage);
+      
+      let userErrorMessage = 'Error fetching prescription: ';
+      if (error.message && error.message.includes('Network')) {
+        userErrorMessage += 'Network connection issue. Please check your connection and try again.';
+      } else if (error.message && error.message.includes('timeout')) {
+        userErrorMessage += 'Request timed out. Please try again.';
+      } else if (error.message && error.message.includes('Authentication')) {
+        userErrorMessage += 'Authentication error. Please refresh the page and try again.';
+      } else if (error.message && error.message.includes('Invalid')) {
+        userErrorMessage += 'Invalid data provided. Please check your prescription code.';
+      } else if (error.message && error.message.includes('decode call arguments')) {
+        userErrorMessage += 'System compatibility issue. The prescription format may have changed. Please contact support.';
+      } else if (error.message && error.message.includes('Canister')) {
+        userErrorMessage += 'Backend service error. Please try again in a moment or contact support.';
+      } else if (error.message && error.message.includes('trap')) {
+        userErrorMessage += 'System error occurred. Please verify your prescription code format and try again.';
+      } else if (error.message && error.message.includes('No more values on the wire')) {
+        userErrorMessage += 'Invalid prescription code format. Please check your prescription code and try again.';
+      } else if (error.message) {
+        userErrorMessage += error.message;
+      } else {
+        userErrorMessage += 'An unexpected error occurred. Please try again later.';
+      }
+      
+      showAlert('error', userErrorMessage);
       return false;
     } finally {
       setLoading(false);

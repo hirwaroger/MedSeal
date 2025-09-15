@@ -87,37 +87,82 @@ function Login({ showAlert }) {
     }
   }, [isConnected, user, loading, userCheckCompleted, user_principal, showAlert, redirectExecuted]);
 
+  // Enhanced error logging
+  useEffect(() => {
+    console.log("LOG: Login component state:", { 
+      isConnected, 
+      hasUser: !!user, 
+      loading,
+      redirecting,
+      userCheckCompleted,
+      user_principal,
+      errorMsg
+    });
+
+    // Show user feedback for connection issues
+    if (isConnected === false && !loading) {
+      setDebugInfo('Wallet connection failed. Please try connecting again.');
+    }
+  }, [isConnected, user, loading, redirecting, userCheckCompleted, user_principal, errorMsg]);
+
   // When index ready & connected & no user yet, attempt frontend resolution
   useEffect(() => {
     const resolveUser = async () => {
       if (isConnected && user_principal && userIndexLoaded && !user && !userCheckCompleted && !redirectExecuted) {
         console.log('LOG: Attempting frontend index auth');
         setAwaitingIndexResolve(true);
-        const found = await findUserByPrincipal(user_principal);
-        setAwaitingIndexResolve(false);
-        setUserCheckCompleted(true);
-        if (found) {
-          console.log('LOG: Frontend index resolved user, redirecting');
-          console.log('LOG: User role before saving:', found.role);
+        setDebugInfo('Checking account in system...');
+        
+        try {
+          const found = await findUserByPrincipal(user_principal);
+          setAwaitingIndexResolve(false);
+          setUserCheckCompleted(true);
           
-          // Ensure the user object is properly serialized before saving
-          const saveResult = sessionUtils.saveSession(found);
-          if (!saveResult) {
-            console.error('LOG: Failed to save session, user object might be invalid:', found);
-            setErrorMsg('Failed to save your session. Please try again.');
-            return;
+          if (found) {
+            console.log('LOG: Frontend index resolved user, redirecting');
+            console.log('LOG: User role before saving:', found.role);
+            
+            setDebugInfo(`Account found! Redirecting to dashboard...`);
+            
+            // Ensure the user object is properly serialized before saving
+            const saveResult = sessionUtils.saveSession(found);
+            if (!saveResult) {
+              console.error('LOG: Failed to save session, user object might be invalid:', found);
+              setErrorMsg('Failed to save your session. Please try again.');
+              showAlert('error', 'Session save failed. Please try logging in again.');
+              return;
+            }
+            
+            setRedirecting(true);
+            setRedirectExecuted(true);
+            const redirectPath = sessionUtils.getRedirectPath(found);
+            console.log('LOG: Redirecting to:', redirectPath);
+            setTimeout(() => window.location.href = redirectPath, 600);
+          } else {
+            console.log('LOG: No account via index; marking accountCheckFailed');
+            setAccountCheckFailed(true);
+            setDebugInfo('No account found for this wallet');
+            setErrorMsg('No MedSeal account found for this wallet. Please create an account first or try a different wallet.');
+            showAlert('warning', 'This wallet does not have a MedSeal account. Please create an account first.');
+          }
+        } catch (error) {
+          console.error('LOG: Error during user resolution:', error);
+          setAwaitingIndexResolve(false);
+          setUserCheckCompleted(true);
+          setAccountCheckFailed(true);
+          
+          let errorMessage = 'Error checking account: ';
+          if (error.message && error.message.includes('Network')) {
+            errorMessage += 'Network connection issue. Please check your connection and try again.';
+          } else if (error.message && error.message.includes('timeout')) {
+            errorMessage += 'Connection timed out. Please try again.';
+          } else {
+            errorMessage += 'System error. Please try again or refresh the page.';
           }
           
-          setRedirecting(true);
-          setRedirectExecuted(true);
-          const redirectPath = sessionUtils.getRedirectPath(found);
-          console.log('LOG: Redirecting to:', redirectPath);
-          setTimeout(() => window.location.href = redirectPath, 600);
-        } else {
-          console.log('LOG: No account via index; marking accountCheckFailed');
-          setAccountCheckFailed(true);
-          setErrorMsg('No MedSeal account found for this wallet. Please create an account first.');
-          showAlert('warning', 'This wallet does not have a MedSeal account.');
+          setErrorMsg(errorMessage);
+          setDebugInfo('Account check failed');
+          showAlert('error', errorMessage);
         }
       }
     };

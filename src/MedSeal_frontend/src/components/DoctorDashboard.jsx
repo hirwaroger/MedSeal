@@ -43,22 +43,40 @@ function DoctorDashboard({ user, showAlert }) {
   // Handle verification request submission
   const handleVerificationSubmit = async (verificationData) => {
     if (!authenticatedActor) {
-      showAlert('error', 'Backend connection not available');
+      showAlert('error', 'Backend connection not available. Please refresh the page and try again.');
       return;
     }
 
     try {
+      showAlert('info', 'Submitting verification request...');
       const result = await authenticatedActor.submit_verification_request(verificationData);
       
       if ('Ok' in result) {
         showAlert('success', 'Verification request submitted successfully! You will be notified once reviewed.');
         setActiveTab('overview'); // Redirect to overview
       } else {
+        console.error('Verification submission failed:', result.Err);
         showAlert('error', `Failed to submit verification request: ${result.Err}`);
       }
     } catch (error) {
       console.error('Error submitting verification request:', error);
-      showAlert('error', `Error submitting verification request: ${error.message}`);
+      let errorMessage = 'Error submitting verification request: ';
+      
+      if (error.message) {
+        if (error.message.includes('Network')) {
+          errorMessage += 'Network connection issue. Please check your connection and try again.';
+        } else if (error.message.includes('Authentication')) {
+          errorMessage += 'Authentication error. Please refresh the page and try again.';
+        } else if (error.message.includes('Invalid')) {
+          errorMessage += 'Invalid data format. Please check your information and try again.';
+        } else {
+          errorMessage += error.message;
+        }
+      } else {
+        errorMessage += 'An unexpected error occurred. Please try again later.';
+      }
+      
+      showAlert('error', errorMessage);
     }
   };
 
@@ -123,7 +141,7 @@ function DoctorDashboard({ user, showAlert }) {
     
     switch (user.verification_status) {
       case 'Pending': return 'Verification Pending';
-      case 'Approved': return 'Verified ✓';
+      case 'Approved': return 'Verified';
       case 'Rejected': return 'Verification Rejected';
       default: return 'Request Verification';
     }
@@ -167,10 +185,16 @@ function DoctorDashboard({ user, showAlert }) {
                     user.verification_status === 'Rejected' ? 'text-red-200' :
                     'text-blue-200'
                   }`}>
-                    {user.verification_status === 'Approved' ? '✅ Verified' :
-                     user.verification_status === 'Pending' ? '⏳ Pending Verification' :
-                     user.verification_status === 'Rejected' ? '❌ Verification Rejected' :
-                     'Not Verified'}
+                    {user.verification_status === 'Approved' && (
+                      <span className="flex items-center gap-2"><i className="fa-solid fa-check-circle" aria-hidden="true" /><span>Verified</span></span>
+                    )}
+                    {user.verification_status === 'Pending' && (
+                      <span className="flex items-center gap-2"><i className="fa-solid fa-hourglass-half" aria-hidden="true" /><span>Pending Verification</span></span>
+                    )}
+                    {user.verification_status === 'Rejected' && (
+                      <span className="flex items-center gap-2"><i className="fa-solid fa-xmark-circle" aria-hidden="true" /><span>Verification Rejected</span></span>
+                    )}
+                    {!['Approved','Pending','Rejected'].includes(user.verification_status) && <span>Not Verified</span>}
                   </p>
                 )}
               </div>
@@ -204,7 +228,7 @@ function DoctorDashboard({ user, showAlert }) {
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             className="w-full text-white hover:bg-white/20 rounded p-2 transition-colors"
           >
-            {sidebarCollapsed ? '→' : '←'}
+            {sidebarCollapsed ? <i className="fa-solid fa-angle-right" aria-hidden="true" /> : <i className="fa-solid fa-angle-left" aria-hidden="true" />}
           </button>
         </div>
       </div>
@@ -220,7 +244,7 @@ function DoctorDashboard({ user, showAlert }) {
                 user.verification_status === 'Rejected' ? 'bg-red-50 border-red-300' : 'bg-blue-50 border-blue-300'
               }`}>
                 <span className="text-2xl">
-                  {user.verification_status === 'Pending' ? '⏳' : user.verification_status === 'Rejected' ? '❌' : '🔍'}
+                  {user.verification_status === 'Pending' ? <i className="fa-solid fa-hourglass-half" aria-hidden="true" /> : user.verification_status === 'Rejected' ? <i className="fa-solid fa-xmark-circle" aria-hidden="true" /> : <i className="fa-solid fa-magnifying-glass" aria-hidden="true" /> }
                 </span>
                 <div className="flex-1">
                   <h3 className="font-semibold text-gray-900 mb-1">
@@ -238,7 +262,11 @@ function DoctorDashboard({ user, showAlert }) {
                       onClick={() => setActiveTab('verification')}
                       className="inline-flex items-center text-sm font-medium text-blue-700 hover:text-blue-800"
                     >
-                      {user.verification_status === 'Rejected' ? 'Resubmit verification request →' : 'Submit verification request →'}
+                      {user.verification_status === 'Rejected' ? (
+                        <><span>Resubmit verification request</span> <i className="fa-solid fa-arrow-right ml-2" aria-hidden="true" /></>
+                      ) : (
+                        <><span>Submit verification request</span> <i className="fa-solid fa-arrow-right ml-2" aria-hidden="true" /></>
+                      )}
                     </button>
                   )}
                   {user.verification_status === 'Pending' && (

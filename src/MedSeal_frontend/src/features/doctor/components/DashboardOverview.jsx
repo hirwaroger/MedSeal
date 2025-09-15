@@ -60,7 +60,7 @@ function DashboardOverview({ user, medicines, prescriptions, onTabChange, onOpen
                 <div className="text-3xl font-bold mb-1">{medicines.length}</div>
                 <div className="text-blue-100 text-sm">Total Medicines</div>
               </div>
-              <div className="text-4xl opacity-80">💊</div>
+              <div className="text-4xl opacity-80"><i className="fa-solid fa-capsules" aria-hidden="true" /></div>
             </div>
           </div>
           
@@ -70,7 +70,7 @@ function DashboardOverview({ user, medicines, prescriptions, onTabChange, onOpen
                 <div className="text-3xl font-bold mb-1">{prescriptions.length}</div>
                 <div className="text-green-100 text-sm">Prescriptions Created</div>
               </div>
-              <div className="text-4xl opacity-80">📋</div>
+              <div className="text-4xl opacity-80"><i className="fa-solid fa-clipboard" aria-hidden="true" /></div>
             </div>
           </div>
           
@@ -80,7 +80,7 @@ function DashboardOverview({ user, medicines, prescriptions, onTabChange, onOpen
                 <div className="text-3xl font-bold mb-1">{accessedCount}</div>
                 <div className="text-blue-100 text-sm">Accessed</div>
               </div>
-              <div className="text-4xl opacity-80">✅</div>
+              <div className="text-4xl opacity-80"><i className="fa-solid fa-check" aria-hidden="true" /></div>
             </div>
           </div>
           
@@ -90,7 +90,7 @@ function DashboardOverview({ user, medicines, prescriptions, onTabChange, onOpen
                 <div className="text-3xl font-bold mb-1">{pendingCount}</div>
                 <div className="text-yellow-100 text-sm">Pending</div>
               </div>
-              <div className="text-4xl opacity-80">⏰</div>
+              <div className="text-4xl opacity-80"><i className="fa-solid fa-clock" aria-hidden="true" /></div>
             </div>
           </div>
         </div>
@@ -141,7 +141,7 @@ function DashboardOverview({ user, medicines, prescriptions, onTabChange, onOpen
                 ))}
                 {prescriptions.length === 0 && (
                   <div className="text-center py-12">
-                    <div className="text-6xl mb-4">📋</div>
+                    <div className="text-6xl mb-4"><i className="fa-solid fa-clipboard" aria-hidden="true" /></div>
                     <h3 className="text-xl font-semibold text-gray-500 mb-2">
                       No prescriptions created yet
                     </h3>

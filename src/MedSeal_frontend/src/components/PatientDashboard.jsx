@@ -178,7 +178,7 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
     if (!currentMessage.trim()) return;
     
     if (!authenticatedActor) {
-      showAlert('error', 'Backend connection not available');
+      showAlert('error', 'Backend connection not available. Please refresh the page and try again.');
       return;
     }
     
@@ -255,17 +255,42 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
           }, 10000);
         }
       } else {
-        throw new Error(response.Err);
+        console.error('AI Chat Error Response:', response.Err);
+        throw new Error(response.Err || 'Unknown error occurred');
       }
     } catch (error) {
       console.error('Chat error:', error);
-      const errorMessage = {
+      
+      let errorMessage = 'Sorry, I encountered an error. ';
+      
+      if (error.message) {
+        if (error.message.includes('Network')) {
+          errorMessage += 'Please check your internet connection and try again.';
+        } else if (error.message.includes('Authentication')) {
+          errorMessage += 'Please refresh the page and try again.';
+        } else if (error.message.includes('Invalid')) {
+          errorMessage += 'There was a data format issue. Please try refreshing the page.';
+        } else if (error.message.includes('not found')) {
+          errorMessage += 'The requested information could not be found.';
+        } else {
+          errorMessage += `Error: ${error.message}`;
+        }
+      } else {
+        errorMessage += 'Please try again in a moment.';
+      }
+      
+      const errorMessageObj = {
         role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
+        content: errorMessage,
         timestamp: new Date().toISOString(),
         isError: true
       };
-      setMessages([...newMessages, errorMessage]);
+      setMessages([...newMessages, errorMessageObj]);
+      
+      // Show alert for critical errors
+      if (error.message && (error.message.includes('Authentication') || error.message.includes('Network'))) {
+        showAlert('error', errorMessage);
+      }
     } finally {
       setIsTyping(false);
     }

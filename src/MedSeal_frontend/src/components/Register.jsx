@@ -42,17 +42,23 @@ function Register({ showAlert }) {
     const checkAdminExists = async () => {
       if (authenticatedActor && adminExists === null) {
         try {
+          console.log('LOG: Checking if admin exists...');
           const exists = await authenticatedActor.admin_exists();
           console.log('LOG: Admin exists check result:', exists);
           setAdminExists(exists);
         } catch (error) {
           console.error('LOG: Error checking admin exists:', error);
           setAdminExists(true); // Default to true if check fails
+          
+          // Show user feedback for admin check failure
+          if (error.message && error.message.includes('Network')) {
+            showAlert('warning', 'Network issue while checking system status. Please refresh if you encounter issues.');
+          }
         }
       }
     };
     checkAdminExists();
-  }, [authenticatedActor, adminExists]);
+  }, [authenticatedActor, adminExists, showAlert]);
 
   // Process status logging on mount and when wallet connection changes
   useEffect(() => {
@@ -102,12 +108,17 @@ function Register({ showAlert }) {
   useEffect(() => {
     const preCheck = async () => {
       if (isConnected && user_principal && userIndexLoaded && registrationStatus === 'idle') {
-        const existing = await findUserByPrincipal(user_principal);
-        if (existing) {
-          console.log('LOG: Frontend index detected existing account, redirecting to login');
-          setRegistrationStatus('exists');
-          showAlert('info', 'This wallet already has an account. Redirecting to login...');
-          setTimeout(() => window.location.href = '/login', 1500);
+        try {
+          const existing = await findUserByPrincipal(user_principal);
+          if (existing) {
+            console.log('LOG: Frontend index detected existing account, redirecting to login');
+            setRegistrationStatus('exists');
+            showAlert('info', 'This wallet already has an account. Redirecting to login...');
+            setTimeout(() => window.location.href = '/login', 1500);
+          }
+        } catch (error) {
+          console.error('LOG: Error during account pre-check:', error);
+          // Don't show error to user for pre-check failures, just continue with registration
         }
       }
     };
@@ -190,7 +201,12 @@ function Register({ showAlert }) {
     
     if (!validateForm()) {
       console.log("LOG: Form validation failed");
-      showAlert('error', 'Please fix the errors below');
+      showAlert('error', 'Please fix the errors below and try again.');
+      return;
+    }
+    
+    if (!isConnected) {
+      showAlert('error', 'Please connect your wallet first before registering.');
       return;
     }
     
@@ -198,6 +214,7 @@ function Register({ showAlert }) {
       setIsSubmitting(true);
       setRegistrationStatus('registering');
       console.log('LOG: Starting registration process with data:', formData);
+      showAlert('info', 'Creating your MedSeal account...');
       
       const result = await register(formData);
       console.log('LOG: Registration result:', result);
@@ -205,7 +222,7 @@ function Register({ showAlert }) {
       if (result.success) {
         console.log('LOG: Registration successful!');
         setRegistrationStatus('success');
-        showAlert('success', result.message);
+        showAlert('success', result.message || 'Account created successfully! Redirecting to dashboard...');
         
         // Save session after successful registration
         if (result.user) {
@@ -242,21 +259,49 @@ function Register({ showAlert }) {
         setRegistrationStatus('failed');
         setRegistrationError(result.message);
         
+        // Enhanced error messages for users
+        let userErrorMessage = result.message || 'Registration failed';
+        
+        if (result.message && result.message.includes('already exists')) {
+          userErrorMessage = 'An account with this wallet already exists. Please use the login page instead.';
+        } else if (result.message && result.message.includes('Invalid')) {
+          userErrorMessage = 'Invalid registration data. Please check your information and try again.';
+        } else if (result.message && result.message.includes('Network')) {
+          userErrorMessage = 'Network connection issue. Please check your connection and try again.';
+        }
+        
         // Handle redirect case
         if (result.shouldRedirect === 'login') {
-          showAlert('info', result.message);
+          showAlert('info', userErrorMessage);
           setTimeout(() => {
             window.location.href = '/login';
           }, 2000);
         } else {
-          showAlert('error', result.message || 'Registration failed');
+          showAlert('error', userErrorMessage);
         }
       }
     } catch (error) {
       console.error('LOG: Registration error:', error);
       setRegistrationStatus('failed');
       setRegistrationError(error.message);
-      showAlert('error', 'An unexpected error occurred during registration');
+      
+      let errorMessage = 'Registration failed: ';
+      
+      if (error.message && error.message.includes('Network')) {
+        errorMessage += 'Network connection issue. Please check your connection and try again.';
+      } else if (error.message && error.message.includes('timeout')) {
+        errorMessage += 'Request timed out. Please try again.';
+      } else if (error.message && error.message.includes('Invalid')) {
+        errorMessage += 'Invalid data provided. Please check your information and try again.';
+      } else if (error.message && error.message.includes('Authentication')) {
+        errorMessage += 'Authentication issue. Please refresh the page and try again.';
+      } else if (error.message) {
+        errorMessage += error.message;
+      } else {
+        errorMessage += 'An unexpected error occurred. Please try again later.';
+      }
+      
+      showAlert('error', errorMessage);
     } finally {
       setIsSubmitting(false);
     }

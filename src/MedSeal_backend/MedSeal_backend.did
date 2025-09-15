@@ -211,10 +211,11 @@ service : {
   get_user: (text) -> (opt User) query;
   list_user_principals: () -> (vec PrincipalEntry) query; // (principal_ent, user_id, email)
 
-  // Prescriptions / Medicines
+  // Prescriptions / Medicines - Updated signatures
   create_prescription: (CreatePrescriptionRequest) -> (Result_Text);
-  get_prescription: (text) -> (opt Prescription) query;
+  get_prescription: (text, text) -> (Result_Prescription); // prescription_id, verification_code
   get_prescription_by_code: (text) -> (opt Prescription) query;
+  get_prescription_legacy: (text, text) -> (Result_Prescription) query; // For backward compatibility
   get_all_medicines: () -> (vec Medicine) query;
   get_doctor_medicines: (text) -> (vec Medicine) query;
   get_doctor_prescriptions: (text) -> (vec Prescription) query;
