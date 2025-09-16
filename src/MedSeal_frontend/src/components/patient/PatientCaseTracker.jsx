@@ -7,6 +7,50 @@ function PatientCaseTracker() {
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Helper function to convert BigInt timestamps to regular numbers
+  const convertBigIntTimestamp = (timestamp) => {
+    if (!timestamp) return null;
+    
+    // Handle array format (IC optional types sometimes return arrays)
+    if (Array.isArray(timestamp)) {
+      if (timestamp.length === 0) return null;
+      timestamp = timestamp[0];
+    }
+    
+    if (typeof timestamp === 'bigint') {
+      // Convert BigInt to Number and handle nanoseconds to milliseconds conversion
+      const numericTimestamp = Number(timestamp);
+      // IC timestamps are in nanoseconds, convert to milliseconds
+      return Math.floor(numericTimestamp / 1000000);
+    }
+    
+    if (typeof timestamp === 'string') {
+      const parsed = parseInt(timestamp, 10);
+      if (isNaN(parsed)) return null;
+      return parsed > 1e15 ? Math.floor(parsed / 1000000) : parsed;
+    }
+    
+    if (typeof timestamp === 'number') {
+      // If it's already a number, check if it needs nanosecond conversion
+      return timestamp > 1e15 ? Math.floor(timestamp / 1000000) : timestamp;
+    }
+    
+    return timestamp;
+  };
+
+  // Helper function to normalize case data
+  const normalizeCaseData = (caseData) => {
+    return {
+      ...caseData,
+      created_at: convertBigIntTimestamp(caseData.created_at),
+      reviewed_at: convertBigIntTimestamp(caseData.reviewed_at),
+      // Ensure required_amount is properly handled
+      required_amount: typeof caseData.required_amount === 'bigint' 
+        ? Number(caseData.required_amount) 
+        : caseData.required_amount
+    };
+  };
+
   useEffect(() => {
     loadMyCases();
   }, [authenticatedActor]);
@@ -15,12 +59,24 @@ function PatientCaseTracker() {
     if (!authenticatedActor) return;
     
     try {
+      console.log('LOG: Loading patient cases...');
       const result = await authenticatedActor.get_my_patient_cases();
+      console.log('LOG: Raw cases result:', result);
+      
       if ('Ok' in result) {
-        setCases(result.Ok);
+        // Normalize all case data to handle BigInt timestamps
+        const normalizedCases = result.Ok.map(caseData => {
+          console.log('LOG: Normalizing case:', caseData.id);
+          return normalizeCaseData(caseData);
+        });
+        
+        console.log('LOG: Normalized cases:', normalizedCases);
+        setCases(normalizedCases);
+      } else {
+        console.error('LOG: Error loading cases:', result.Err);
       }
     } catch (error) {
-      console.error('Error loading cases:', error);
+      console.error('LOG: Error loading cases:', error);
     } finally {
       setLoading(false);
     }
@@ -47,6 +103,31 @@ function PatientCaseTracker() {
       case 'Medium': return 'bg-yellow-100 text-yellow-800';
       case 'Low': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  // Safe date formatting
+  const formatDate = (timestamp) => {
+    if (!timestamp) return 'N/A';
+    
+    try {
+      const date = new Date(timestamp);
+      if (isNaN(date.getTime())) return 'Invalid Date';
+      return date.toLocaleDateString();
+    } catch (error) {
+      console.error('LOG: Error formatting date:', timestamp, error);
+      return 'Invalid Date';
+    }
+  };
+
+  // Safe amount formatting
+  const formatAmount = (amount) => {
+    try {
+      const numAmount = typeof amount === 'bigint' ? Number(amount) : amount;
+      return (numAmount / 100).toFixed(2);
+    } catch (error) {
+      console.error('LOG: Error formatting amount:', amount, error);
+      return '0.00';
     }
   };
 
@@ -90,16 +171,16 @@ function PatientCaseTracker() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
                   <div>
                     <p className="text-sm text-gray-600">Required Amount</p>
-                    <p className="text-lg font-semibold text-green-600">${(case_.required_amount / 100).toFixed(2)}</p>
+                    <p className="text-lg font-semibold text-green-600">${formatAmount(case_.required_amount)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Submitted</p>
-                    <p className="font-medium">{new Date(Number(case_.created_at)).toLocaleDateString()}</p>
+                    <p className="font-medium">{formatDate(case_.created_at)}</p>
                   </div>
                   {case_.reviewed_at && (
                     <div>
                       <p className="text-sm text-gray-600">Reviewed</p>
-                      <p className="font-medium">{new Date(Number(case_.reviewed_at)).toLocaleDateString()}</p>
+                      <p className="font-medium">{formatDate(case_.reviewed_at)}</p>
                     </div>
                   )}
                 </div>
