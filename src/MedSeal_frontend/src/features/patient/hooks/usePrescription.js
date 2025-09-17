@@ -244,29 +244,39 @@ export const usePrescription = (showAlert) => {
       const normalizedPrescription = normalizePrescriptionData(prescriptionData);
       console.log('LOG: Normalized prescription data:', normalizedPrescription);
       
+      // Clear previous state first
+      setPrescription(null);
+      setMedicines([]);
+      
+      // Set prescription first
+      setPrescription(normalizedPrescription);
+      
       // Get medicine details for each medicine in the prescription
+      console.log('LOG: Starting to fetch medicine details for', prescriptionData.medicines.length, 'medicines');
       const medicinesWithDetails = await Promise.all(
-        prescriptionData.medicines.map(async (prescriptionMedicine) => {
+        prescriptionData.medicines.map(async (prescriptionMedicine, index) => {
           try {
-            console.log('LOG: Fetching medicine for ID:', prescriptionMedicine.medicine_id);
+            console.log(`LOG: Fetching medicine ${index + 1}/${prescriptionData.medicines.length} for ID:`, prescriptionMedicine.medicine_id);
             
             let medicineResult;
             try {
-              // Try direct medicine lookup
-              medicineResult = await authenticatedActor.get_medicine?.(prescriptionMedicine.medicine_id);
-            } catch (medicineError) {
-              console.log('LOG: get_medicine failed, trying get_all_medicines');
-              // If get_medicine doesn't exist, try getting all medicines and find the one we need
-              try {
-                const allMedicines = await authenticatedActor.get_all_medicines();
-                medicineResult = allMedicines.find(m => m.id === prescriptionMedicine.medicine_id);
-              } catch (allMedicinesError) {
-                console.error('LOG: Failed to get medicines:', allMedicinesError);
-                medicineResult = null;
+              // Try get_all_medicines first as it's more reliable
+              const allMedicines = await authenticatedActor.get_all_medicines();
+              console.log('LOG: Got all medicines, count:', allMedicines.length);
+              medicineResult = allMedicines.find(m => m.id === prescriptionMedicine.medicine_id);
+              console.log('LOG: Found medicine in all medicines:', !!medicineResult);
+              
+              // If not found in all medicines, try direct lookup
+              if (!medicineResult) {
+                console.log('LOG: Medicine not found in all medicines, trying direct get_medicine');
+                medicineResult = await authenticatedActor.get_medicine?.(prescriptionMedicine.medicine_id);
               }
+            } catch (medicineError) {
+              console.log('LOG: Error fetching medicine:', medicineError);
+              medicineResult = null;
             }
             
-            console.log('LOG: Fetched medicine result:', medicineResult, 'for ID:', prescriptionMedicine.medicine_id);
+            console.log('LOG: Final medicine result for ID', prescriptionMedicine.medicine_id, ':', medicineResult);
             
             // Handle case where backend returns different formats
             let medicine = null;
@@ -281,6 +291,7 @@ export const usePrescription = (showAlert) => {
             if (medicine) {
               // Normalize medicine data
               const normalizedMedicine = normalizeMedicineData(medicine);
+              console.log('LOG: Successfully normalized medicine:', normalizedMedicine.name);
               
               return {
                 medicine_id: prescriptionMedicine.medicine_id,
@@ -320,13 +331,11 @@ export const usePrescription = (showAlert) => {
       );
       
       console.log('LOG: All medicine details processed:', medicinesWithDetails);
-      console.log('LOG: Medicine details count:', medicinesWithDetails.length);
+      console.log('LOG: Medicines with valid data:', medicinesWithDetails.filter(m => m.medicine).length);
       
-      // Set normalized data in state
-      setPrescription(normalizedPrescription);
+      // Set medicines state
       setMedicines(medicinesWithDetails);
       
-      console.log('LOG: State updated - prescription set');
       console.log('LOG: State updated - medicines set to count:', medicinesWithDetails.length);
       
       // Save to history with normalized data
@@ -370,8 +379,19 @@ export const usePrescription = (showAlert) => {
 
   const loadPrescriptionFromHistory = (historyEntry) => {
     try {
+      console.log('LOG: Loading prescription from history:', historyEntry);
+      
+      // Clear current state first
+      setPrescription(null);
+      setMedicines([]);
+      
+      // Set state from history
       setPrescription(historyEntry.prescription_data);
       setMedicines(historyEntry.medicines_data);
+      
+      console.log('LOG: Loaded from history - prescription:', historyEntry.prescription_data);
+      console.log('LOG: Loaded from history - medicines count:', historyEntry.medicines_data.length);
+      
       showAlert('info', 'Prescription loaded from history');
       return true;
     } catch (error) {

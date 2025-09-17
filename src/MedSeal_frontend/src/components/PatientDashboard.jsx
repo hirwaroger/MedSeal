@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePrescription } from '../features/patient/hooks/usePrescription';
 import { useAuth } from '../hooks/useAuth';
 import { sessionUtils } from '../utils/session';
@@ -13,32 +13,58 @@ import PatientCaseSubmission from '../features/patient/components/PatientCaseSub
 
 function PatientDashboard({ user, showAlert }) {
   useFavicon('/favicon.png');
-  const [activeTab, setActiveTab] = useState('access');
-  const [messages, setMessages] = useState([]);
-  const [currentMessage, setCurrentMessage] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
   const [showAIChat, setShowAIChat] = useState(false);
   const [aiChatContext, setAiChatContext] = useState(null);
-  const [selectedPrescription, setSelectedPrescription] = useState(null);
-  const [showDoctorVideo, setShowDoctorVideo] = useState(false);
-  const [currentVideoMessage, setCurrentVideoMessage] = useState(null);
-  const [expandedAccordions, setExpandedAccordions] = useState({});
   const [showHealthWidget, setShowHealthWidget] = useState(false);
-  const [redirectedAfterClaim, setRedirectedAfterClaim] = React.useState(false);
+  const [expandedAccordions, setExpandedAccordions] = useState({});
+  const [selectedPrescription, setSelectedPrescription] = useState(null);
+  const [guideDialog, setGuideDialog] = useState({ open: false, medicine: null });
+  const [hasPrescription, setHasPrescription] = useState(false); // Add this state
 
-  const { authenticatedActor } = useAuth();
-
-  // Replace local prescription/medicines/history state with hook-provided state and functions
-  const {
-    loading,
-    fetchPrescription,
-    getMedicine,
-    clearPrescription,
-    prescription: hookPrescription,
-    medicines: hookMedicines,
-    prescriptionHistory: hookPrescriptionHistory,
-    loadPrescriptionFromHistory
+  const { 
+    prescription, 
+    medicines, 
+    prescriptionHistory, 
+    loading, 
+    fetchPrescription, 
+    loadPrescriptionFromHistory, 
+    clearPrescription 
   } = usePrescription(showAlert);
+
+  // Monitor prescription changes and update UI state
+  useEffect(() => {
+    console.log('LOG: PatientDashboard - prescription changed:', prescription);
+    console.log('LOG: PatientDashboard - medicines changed:', medicines);
+    
+    if (prescription && medicines && medicines.length > 0) {
+      console.log('LOG: Prescription and medicines loaded, updating UI state');
+      setHasPrescription(true);
+      setSelectedPrescription(prescription);
+      // Switch to prescription tab to show the loaded prescription
+      setActiveTab('prescription');
+    } else if (prescription && (!medicines || medicines.length === 0)) {
+      console.log('LOG: Prescription loaded but no medicines, keeping hasPrescription false');
+      setHasPrescription(false);
+      setSelectedPrescription(null);
+    } else {
+      console.log('LOG: No prescription data, resetting state');
+      setHasPrescription(false);
+      setSelectedPrescription(null);
+    }
+  }, [prescription, medicines]);
+
+  // Handle prescription access success
+  const handlePrescriptionLoad = (success) => {
+    console.log('LOG: handlePrescriptionLoad called with success:', success);
+    if (success) {
+      // Force a small delay to ensure state updates are processed
+      setTimeout(() => {
+        console.log('LOG: Switching to prescription tab after successful load');
+        setActiveTab('prescription');
+      }, 100);
+    }
+  };
 
   // Save current view to session when tab changes
   React.useEffect(() => {
@@ -347,9 +373,7 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             <PrescriptionAccess 
-              onPrescriptionLoad={() => {
-                setRedirectedAfterClaim(false); // ensure redirect/alert on next hookPrescription update
-              }}
+              onPrescriptionLoad={handlePrescriptionLoad}
               showAlert={showAlert}
             />
           </div>
@@ -674,12 +698,298 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
       </div>
 
       {/* Main Content */}
-      {activeTab === 'access' && renderAccessContent()}
-      {activeTab === 'prescription' && renderPrescriptionContent()}
-      {activeTab === 'history' && renderHistoryContent()}
-      {activeTab === 'chat' && renderChatContent()}
-      {activeTab === 'case_submission' && renderCaseSubmissionContent()}
-      {activeTab === 'my_cases' && renderMyCasesContent()}
+      <div className="flex-1 overflow-hidden">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <img
+                  src="/favicon.png"
+                  alt="MedSeal"
+                  className="w-10 h-10 rounded-full bg-blue-100 p-1 object-contain ring-2 ring-blue-200"
+                  onError={(e)=>{e.currentTarget.style.display='none';}}
+                />
+                <div>
+                  <h1 className="text-xl font-bold text-gray-900">Welcome, {user.name}</h1>
+                  <p className="text-sm text-gray-600">Patient Dashboard</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                hasPrescription ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+              }`}>
+                {hasPrescription ? `✓ Prescription Loaded (${medicines?.length || 0} medicines)` : 'No Prescription'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="bg-white border-b border-gray-200 px-6">
+          <nav className="flex space-x-8">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'overview'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Overview
+            </button>
+            <button
+              onClick={() => setActiveTab('access')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'access'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Access Prescription
+            </button>
+            <button
+              onClick={() => setActiveTab('prescription')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'prescription'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+              disabled={!hasPrescription}
+            >
+              My Prescription {hasPrescription && `(${medicines?.length || 0})`}
+            </button>
+            <button
+              onClick={() => setActiveTab('cases')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'cases'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              My Cases
+            </button>
+          </nav>
+        </div>
+
+        {/* Tab Content */}
+        <div className="flex-1 overflow-auto bg-gray-50">
+          {activeTab === 'overview' && (
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Quick Stats */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <FAIcon name="pills" className="text-blue-600 text-xl" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Active Prescription</h3>
+                      <p className="text-2xl font-bold text-blue-600">
+                        {hasPrescription ? medicines?.length || 0 : 0}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {hasPrescription ? 'Medicines loaded' : 'No prescription accessed'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                      <FAIcon name="clock" className="text-green-600 text-xl" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">History</h3>
+                      <p className="text-2xl font-bold text-green-600">{prescriptionHistory.length}</p>
+                      <p className="text-sm text-gray-600">Previous prescriptions</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <FAIcon name="robot" className="text-purple-600 text-xl" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">AI Support</h3>
+                      <p className="text-2xl font-bold text-purple-600">24/7</p>
+                      <p className="text-sm text-gray-600">Health assistance</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => setActiveTab('access')}
+                      className="w-full flex items-center gap-3 px-4 py-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
+                    >
+                      <FAIcon name="plus" />
+                      Access New Prescription
+                    </button>
+                    {hasPrescription && (
+                      <button
+                        onClick={() => setActiveTab('prescription')}
+                        className="w-full flex items-center gap-3 px-4 py-3 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors"
+                      >
+                        <FAIcon name="eye" />
+                        View Current Prescription
+                      </button>
+                    )}
+                    <button
+                      onClick={() => openAIAssistant(null, 'general')}
+                      className="w-full flex items-center gap-3 px-4 py-3 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors"
+                    >
+                      <FAIcon name="robot" />
+                      Ask AI Health Partner
+                    </button>
+                  </div>
+                </div>
+
+                {/* Prescription History Preview */}
+                {prescriptionHistory.length > 0 && (
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Prescriptions</h3>
+                    <div className="space-y-3">
+                      {prescriptionHistory.slice(0, 3).map((entry) => (
+                        <div
+                          key={entry.id}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => {
+                            loadPrescriptionFromHistory(entry);
+                            setActiveTab('prescription');
+                          }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <FAIcon name="pills" className="text-gray-600" />
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">
+                                {entry.medicines_count} medicine{entry.medicines_count !== 1 ? 's' : ''}
+                              </p>
+                              <p className="text-xs text-gray-600">
+                                {formatDateShort(entry.created_at)}
+                              </p>
+                            </div>
+                          </div>
+                          <FAIcon name="chevron-right" className="text-gray-400" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'access' && (
+            <div className="p-6">
+              <PrescriptionAccess 
+                onPrescriptionLoad={handlePrescriptionLoad}
+                showAlert={showAlert}
+              />
+            </div>
+          )}
+
+          {activeTab === 'prescription' && (
+            <div className="p-6 space-y-6">
+              {hasPrescription && prescription && medicines ? (
+                <>
+                  {/* Prescription Header */}
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <FAIcon name="file-prescription" className="text-2xl text-blue-600" />
+                        <div>
+                          <h2 className="text-xl font-semibold text-gray-900">Your Prescription</h2>
+                          <p className="text-gray-600">
+                            Issued on {formatDate(prescription.created_at)}
+                            {prescription.accessed_at && (
+                              <span className="ml-2 text-green-600">• Accessed on {formatDate(prescription.accessed_at)}</span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => openAIAssistant({ prescription: createPrescriptionSummary() }, 'prescription')}
+                          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+                        >
+                          <FAIcon name="robot" />
+                          Ask AI About This
+                        </button>
+                        <button
+                          onClick={() => {
+                            clearPrescription();
+                            setActiveTab('overview');
+                          }}
+                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          Clear Prescription
+                        </button>
+                      </div>
+                    </div>
+
+                    {prescription.additional_notes && (
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                        <div className="flex items-center gap-2 mb-1">
+                          <FAIcon name="sticky-note" className="text-amber-600" />
+                          <h4 className="font-semibold text-amber-800">Doctor's Notes</h4>
+                        </div>
+                        <p className="text-amber-700">{prescription.additional_notes}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Medicines List */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Your Medications ({medicines.length})
+                    </h3>
+                    {medicines.map((medicine, index) => (
+                      <MedicationCard
+                        key={`${medicine.medicine_id}_${index}`}
+                        medicine={medicine}
+                        index={index}
+                        onViewGuide={viewMedicineGuide}
+                        onAskAI={openAIAssistant}
+                        expandedAccordions={expandedAccordions}
+                        onToggleAccordion={toggleAccordion}
+                      />
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="text-6xl mb-4">
+                    <FAIcon name="prescription-bottle" className="inline-block text-gray-300" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-500 mb-2">No Prescription Loaded</h3>
+                  <p className="text-gray-500 mb-6">
+                    Please access a prescription first to view your medications.
+                  </p>
+                  <button
+                    onClick={() => setActiveTab('access')}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Access Prescription
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'case_submission' && renderCaseSubmissionContent()}
+          {activeTab === 'my_cases' && renderMyCasesContent()}
+        </div>
+      </div>
 
       {/* AI Chat Modal */}
       {showAIChat && (
