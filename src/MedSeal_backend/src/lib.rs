@@ -1,12 +1,12 @@
 use candid::{CandidType, Deserialize};
 
 // Module declarations
-pub mod doctor;
-pub mod patient;
-pub mod shared;
-pub mod ai;
-pub mod ngo;
-pub mod admin;
+mod doctor;
+mod patient; 
+mod ngo;
+mod admin;
+mod ai;
+mod shared;
 
 // Export service modules
 pub use shared::auth::*;
@@ -61,4 +61,64 @@ fn icrc28_trusted_origins() -> Icrc28TrustedOriginsResponse {
 #[ic_cdk::query]
 fn greet(name: String) -> String {
     format!("Hello, {}!", name)
+}
+
+// Doctor verification
+#[ic_cdk::update]
+fn submit_doctor_verification_request(request: shared::types::SubmitVerificationRequest) -> shared::types::Result<String> {
+    doctor::submit_doctor_verification_request(request)
+}
+
+// NGO verification  
+#[ic_cdk::update]
+fn submit_ngo_verification_request(request: shared::types::SubmitVerificationRequest) -> shared::types::Result<String> {
+    ngo::submit_ngo_verification_request(request)
+}
+
+// Legacy verification endpoint (for backward compatibility)
+#[ic_cdk::update]
+fn submit_verification_request(request: shared::types::SubmitVerificationRequest) -> shared::types::Result<String> {
+    use ic_cdk::api::caller;
+    let caller_principal = caller().to_string();
+    
+    if let Some(user) = shared::storage::get_user_by_principal(&caller_principal) {
+        match user.role {
+            shared::types::UserRole::Doctor => doctor::submit_doctor_verification_request(request),
+            shared::types::UserRole::NGO => ngo::submit_ngo_verification_request(request),
+            _ => Err("Invalid user role for verification request".to_string()),
+        }
+    } else {
+        Err("User not found".to_string())
+    }
+}
+
+// Admin verification endpoints
+#[ic_cdk::query]
+fn get_all_verification_requests() -> shared::types::Result<Vec<shared::types::VerificationRequest>> {
+    admin::verification::get_all_verification_requests()
+}
+
+#[ic_cdk::query]
+fn get_doctor_verification_requests() -> shared::types::Result<Vec<shared::types::VerificationRequest>> {
+    admin::verification::get_doctor_verification_requests()
+}
+
+#[ic_cdk::query]
+fn get_ngo_verification_requests() -> shared::types::Result<Vec<shared::types::VerificationRequest>> {
+    admin::verification::get_ngo_verification_requests()
+}
+
+#[ic_cdk::query]
+fn get_pending_verification_requests() -> shared::types::Result<Vec<shared::types::VerificationRequest>> {
+    admin::verification::get_pending_verification_requests()
+}
+
+#[ic_cdk::update]
+fn process_verification_request(request: shared::types::ProcessVerificationRequest) -> shared::types::Result<String> {
+    admin::verification::process_verification_request(request)
+}
+
+#[ic_cdk::query]
+fn get_verification_request(verification_id: String) -> shared::types::Result<shared::types::VerificationRequest> {
+    admin::verification::get_verification_request(verification_id)
 }

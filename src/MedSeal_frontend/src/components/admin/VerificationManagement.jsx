@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
 function VerificationManagement() {
-  const { verificationId } = useParams();
+  const { verificationId, type } = useParams(); // Add type parameter
   const navigate = useNavigate();
   const { authenticatedActor } = useAuth();
   const [verificationRequests, setVerificationRequests] = useState([]);
@@ -15,10 +15,11 @@ function VerificationManagement() {
   const [adminNotes, setAdminNotes] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [modalAction, setModalAction] = useState('');
+  const [activeTab, setActiveTab] = useState('doctor'); // 'doctor' or 'ngo'
 
   useEffect(() => {
     loadVerificationRequests();
-  }, [authenticatedActor]);
+  }, [authenticatedActor, activeTab]);
 
   useEffect(() => {
     if (verificationId && verificationRequests.length > 0) {
@@ -39,10 +40,22 @@ function VerificationManagement() {
         throw new Error('Backend connection not available');
       }
 
-      const result = await authenticatedActor.get_all_verification_requests();
+      // Load different types of verification requests based on active tab
+      let result;
+      if (activeTab === 'doctor') {
+        result = await authenticatedActor.get_all_verification_requests();
+      } else {
+        // For NGO, we need a separate method or filter
+        result = await authenticatedActor.get_all_ngo_verification_requests?.() || { Ok: [] };
+      }
       
       if ('Ok' in result) {
-        setVerificationRequests(result.Ok);
+        // Add request type to distinguish between doctor and NGO requests
+        const requestsWithType = result.Ok.map(req => ({
+          ...req,
+          request_type: activeTab
+        }));
+        setVerificationRequests(requestsWithType);
       } else {
         throw new Error(result.Err || 'Failed to load verification requests');
       }
@@ -66,10 +79,17 @@ function VerificationManagement() {
         admin_notes: adminNotes.trim() || null,
       };
 
-      const result = await authenticatedActor.process_verification_request(processRequest);
+      // Use different processing methods based on request type
+      let result;
+      if (selectedRequest.request_type === 'ngo') {
+        result = await authenticatedActor.process_ngo_verification_request?.(processRequest) 
+          || await authenticatedActor.process_verification_request(processRequest);
+      } else {
+        result = await authenticatedActor.process_verification_request(processRequest);
+      }
 
       if ('Ok' in result) {
-        alert(`Verification request ${status.toLowerCase()} successfully!`);
+        alert(`${selectedRequest.request_type?.toUpperCase() || 'Doctor'} verification request ${status.toLowerCase()} successfully!`);
         await loadVerificationRequests();
         setShowModal(false);
         setSelectedRequest(null);
@@ -309,14 +329,66 @@ function VerificationManagement() {
     <div className="p-6">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Verification Management</h1>
-        <p className="text-gray-600">Review and approve doctor verification requests</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Verification Management</h1>
+            <p className="text-gray-600">Review and approve verification requests</p>
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="mt-4">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('doctor')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'doctor'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <i className="fa-solid fa-user-doctor mr-1"></i>
+                Doctor Verifications
+              </button>
+              <button
+                onClick={() => setActiveTab('ngo')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'ngo'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <i className="fa-solid fa-handshake-angle mr-1"></i>
+                NGO Verifications
+              </button>
+            </nav>
+          </div>
+        </div>
       </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <i className="fa-solid fa-exclamation-circle text-red-600 mr-2"></i>
+            <p className="text-red-700">Error: {error}</p>
+          </div>
+          <button
+            onClick={loadVerificationRequests}
+            className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Verification Requests List */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="p-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Pending Requests</h3>
+          <h3 className="text-lg font-semibold text-gray-900">
+            Pending {activeTab === 'doctor' ? 'Doctor' : 'NGO'} Verification Requests
+          </h3>
         </div>
         
         <div className="divide-y divide-gray-200">
@@ -327,9 +399,21 @@ function VerificationManagement() {
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                        activeTab === 'doctor' ? 'bg-blue-100' : 'bg-green-100'
+                      }`}>
+                        <i className={`fa-solid ${
+                          activeTab === 'doctor' ? 'fa-user-doctor text-blue-600' : 'fa-handshake-angle text-green-600'
+                        }`}></i>
+                      </div>
                       <div>
                         <p className="font-medium text-gray-900">{request.institution_name}</p>
-                        <p className="text-sm text-gray-500">Doctor ID: {request.doctor_id}</p>
+                        <p className="text-sm text-gray-500">
+                          {activeTab === 'doctor' ? 'Doctor' : 'NGO'} ID: {request.doctor_id || request.ngo_id}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          License/Registration: {request.medical_license_number}
+                        </p>
                         <p className="text-sm text-gray-500">
                           Submitted: {new Date(Number(request.submitted_at) / 1000000).toLocaleString()}
                         </p>
@@ -341,7 +425,7 @@ function VerificationManagement() {
                     <button
                       onClick={() => {
                         setSelectedRequest(request);
-                        navigate(`/admin/verification/${request.id}`);
+                        navigate(`/admin/verification/${request.id}?type=${activeTab}`);
                       }}
                       className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
                     >
@@ -355,9 +439,13 @@ function VerificationManagement() {
 
         {verificationRequests.filter(req => Object.keys(req.status)[0] === 'Pending').length === 0 && (
           <div className="p-8 text-center">
-            <i className="fa-solid fa-shield-check text-gray-400 text-4xl mb-4"></i>
+            <i className={`fa-solid ${
+              activeTab === 'doctor' ? 'fa-user-doctor' : 'fa-handshake-angle'
+            } text-gray-400 text-4xl mb-4`}></i>
             <h3 className="text-lg font-medium text-gray-900 mb-2">No pending requests</h3>
-            <p className="text-gray-500">All verification requests have been processed</p>
+            <p className="text-gray-500">
+              All {activeTab === 'doctor' ? 'doctor' : 'NGO'} verification requests have been processed
+            </p>
           </div>
         )}
       </div>

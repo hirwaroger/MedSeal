@@ -44,9 +44,12 @@ type Prescription = record {
   doctor_id: text;
 };
 
+type VerificationType = variant { Doctor; NGO; };
+
 type VerificationRequest = record {
   id: text;
-  doctor_id: text;
+  requester_id: text;
+  verification_type: VerificationType;
   institution_name: text;
   institution_website: text;
   license_authority: text;
@@ -229,9 +232,13 @@ service : {
   get_user_stats: (text) -> (Result_UserStats) query;
   get_system_overview: () -> (Result_SystemOverview) query;
 
-  // Verification functions
+  // Verification functions - updated
   submit_verification_request: (SubmitVerificationRequest) -> (Result_Text);
+  submit_doctor_verification_request: (SubmitVerificationRequest) -> (Result_Text);
+  submit_ngo_verification_request: (SubmitVerificationRequest) -> (Result_Text);
   get_all_verification_requests: () -> (Result_VecVerification) query;
+  get_doctor_verification_requests: () -> (Result_VecVerification) query;
+  get_ngo_verification_requests: () -> (Result_VecVerification) query;
   get_pending_verification_requests: () -> (Result_VecVerification) query;
   get_verification_request: (text) -> (Result_Verification) query;
   process_verification_request: (ProcessVerificationRequest) -> (Result_Text);

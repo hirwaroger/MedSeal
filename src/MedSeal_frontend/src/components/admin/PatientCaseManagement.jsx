@@ -10,6 +10,75 @@ function PatientCaseManagement() {
   const [processing, setProcessing] = useState(false);
   const [filter, setFilter] = useState('all'); // all, pending, approved, rejected
 
+  // Helper function to convert BigInt timestamps to regular numbers
+  const convertBigIntTimestamp = (timestamp) => {
+    if (!timestamp) return null;
+    
+    // Handle array format (IC optional types sometimes return arrays)
+    if (Array.isArray(timestamp)) {
+      if (timestamp.length === 0) return null;
+      timestamp = timestamp[0];
+    }
+    
+    if (typeof timestamp === 'bigint') {
+      // Convert BigInt to Number and handle nanoseconds to milliseconds conversion
+      const numericTimestamp = Number(timestamp);
+      // IC timestamps are in nanoseconds, convert to milliseconds
+      return Math.floor(numericTimestamp / 1000000);
+    }
+    
+    if (typeof timestamp === 'string') {
+      const parsed = parseInt(timestamp, 10);
+      if (isNaN(parsed)) return null;
+      return parsed > 1e15 ? Math.floor(parsed / 1000000) : parsed;
+    }
+    
+    if (typeof timestamp === 'number') {
+      // If it's already a number, check if it needs nanosecond conversion
+      return timestamp > 1e15 ? Math.floor(timestamp / 1000000) : timestamp;
+    }
+    
+    return timestamp;
+  };
+
+  // Helper function to normalize case data
+  const normalizeCaseData = (caseData) => {
+    return {
+      ...caseData,
+      created_at: convertBigIntTimestamp(caseData.created_at),
+      reviewed_at: convertBigIntTimestamp(caseData.reviewed_at),
+      // Ensure required_amount is properly handled
+      required_amount: typeof caseData.required_amount === 'bigint' 
+        ? Number(caseData.required_amount) 
+        : caseData.required_amount
+    };
+  };
+
+  // Safe date formatting
+  const formatDate = (timestamp) => {
+    if (!timestamp) return 'N/A';
+    
+    try {
+      const date = new Date(timestamp);
+      if (isNaN(date.getTime())) return 'Invalid Date';
+      return date.toLocaleDateString();
+    } catch (error) {
+      console.error('LOG: Error formatting date:', timestamp, error);
+      return 'Invalid Date';
+    }
+  };
+
+  // Safe amount formatting
+  const formatAmount = (amount) => {
+    try {
+      const numAmount = typeof amount === 'bigint' ? Number(amount) : amount;
+      return (numAmount / 100).toFixed(2);
+    } catch (error) {
+      console.error('LOG: Error formatting amount:', amount, error);
+      return '0.00';
+    }
+  };
+
   useEffect(() => {
     loadCases();
   }, [authenticatedActor, filter]);
@@ -18,6 +87,7 @@ function PatientCaseManagement() {
     if (!authenticatedActor) return;
     
     try {
+      console.log('LOG: Loading patient cases with filter:', filter);
       let result;
       if (filter === 'pending') {
         result = await authenticatedActor.get_pending_patient_cases();
@@ -25,17 +95,29 @@ function PatientCaseManagement() {
         result = await authenticatedActor.get_all_patient_cases();
       }
       
+      console.log('LOG: Raw cases result:', result);
+      
       if ('Ok' in result) {
-        let filteredCases = result.Ok;
+        // Normalize all case data to handle BigInt timestamps
+        const normalizedCases = result.Ok.map(caseData => {
+          console.log('LOG: Normalizing case:', caseData.id);
+          return normalizeCaseData(caseData);
+        });
+
+        let filteredCases = normalizedCases;
         if (filter === 'approved') {
-          filteredCases = result.Ok.filter(c => Object.keys(c.status)[0] === 'Approved');
+          filteredCases = normalizedCases.filter(c => Object.keys(c.status)[0] === 'Approved');
         } else if (filter === 'rejected') {
-          filteredCases = result.Ok.filter(c => Object.keys(c.status)[0] === 'Rejected');
+          filteredCases = normalizedCases.filter(c => Object.keys(c.status)[0] === 'Rejected');
         }
+        
+        console.log('LOG: Normalized and filtered cases:', filteredCases);
         setCases(filteredCases);
+      } else {
+        console.error('LOG: Error loading cases:', result.Err);
       }
     } catch (error) {
-      console.error('Error loading cases:', error);
+      console.error('LOG: Error loading cases:', error);
     } finally {
       setLoading(false);
     }
@@ -171,12 +253,12 @@ function PatientCaseManagement() {
                   <div>
                     <p className="font-medium text-gray-700">Required Amount:</p>
                     <p className="text-lg font-semibold text-green-600">
-                      ${(case_.required_amount / 100).toFixed(2)}
+                      ${formatAmount(case_.required_amount)}
                     </p>
                   </div>
                   <div>
                     <p className="font-medium text-gray-700">Submitted:</p>
-                    <p>{new Date(Number(case_.created_at)).toLocaleDateString()}</p>
+                    <p>{formatDate(case_.created_at)}</p>
                   </div>
                 </div>
 
@@ -257,7 +339,7 @@ function PatientCaseManagement() {
                   <div>
                     <span className="font-medium">Amount Needed:</span>
                     <span className="ml-1 text-green-600 font-semibold">
-                      ${(selectedCase.required_amount / 100).toFixed(2)}
+                      ${formatAmount(selectedCase.required_amount)}
                     </span>
                   </div>
                   <div>

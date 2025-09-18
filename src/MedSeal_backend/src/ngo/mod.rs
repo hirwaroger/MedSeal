@@ -1,3 +1,4 @@
 pub mod cases;
+pub mod verification;
 
-pub use cases::*;
+pub use verification::submit_ngo_verification_request;

@@ -1,4 +1,5 @@
 use candid::{CandidType, Deserialize};
+use serde::Serialize;
 
 #[derive(Clone, Debug, CandidType, Deserialize, PartialEq)]
 pub enum UserRole {
@@ -32,15 +33,22 @@ pub struct User {
     pub total_medicines: u64,
 }
 
-#[derive(Clone, Debug, CandidType, Deserialize)]
+#[derive(Clone, Debug, CandidType, Deserialize, Serialize)]
+pub enum VerificationType {
+    Doctor,
+    NGO,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize, Serialize)]
 pub struct VerificationRequest {
     pub id: String,
-    pub doctor_id: String,
+    pub requester_id: String, // Can be doctor_id or ngo_id
+    pub verification_type: VerificationType, // New field to distinguish type
     pub institution_name: String,
     pub institution_website: String,
     pub license_authority: String,
     pub license_authority_website: String,
-    pub medical_license_number: String,
+    pub medical_license_number: String, // For doctors: medical license, for NGOs: registration number
     pub additional_documents: Vec<String>,
     pub submitted_at: u64,
     pub processed_at: Option<u64>,
