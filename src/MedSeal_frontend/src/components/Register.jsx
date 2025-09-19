@@ -572,7 +572,7 @@ function Register({ showAlert }) {
                               <div className="font-semibold"><i className="fa-solid fa-hands-helping mr-2" aria-hidden="true"></i>NGO</div>
                               <div className="text-sm text-gray-600">Help patients with contribution campaigns</div>
                             </button>
-                            {adminExists === false && (
+                            {adminExists === false && 1==2 && (
                               <button
                                 type="button"
                                 onClick={() => setFormData({...formData, role: 'Admin'})}
