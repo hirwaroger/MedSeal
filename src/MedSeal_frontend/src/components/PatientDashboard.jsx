@@ -10,6 +10,8 @@ import AIChat from './AIChat';
 import PatientCaseTracker from './patient/PatientCaseTracker';
 import { useFavicon } from './useFavicon';
 import PatientCaseSubmission from '../features/patient/components/PatientCaseSubmission';
+import FAIcon from './FAIcon';
+import FallbackView from '../shared/components/FallbackView';
 
 function PatientDashboard({ user, showAlert }) {
   useFavicon('/favicon.png');
@@ -20,7 +22,17 @@ function PatientDashboard({ user, showAlert }) {
   const [expandedAccordions, setExpandedAccordions] = useState({});
   const [selectedPrescription, setSelectedPrescription] = useState(null);
   const [guideDialog, setGuideDialog] = useState({ open: false, medicine: null });
-  const [hasPrescription, setHasPrescription] = useState(false); // Add this state
+  const [hasPrescription, setHasPrescription] = useState(false);
+  const [redirectedAfterClaim, setRedirectedAfterClaim] = useState(false);
+  
+  // Add missing state variables for chat functionality
+  const [messages, setMessages] = useState([]);
+  const [currentMessage, setCurrentMessage] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [showDoctorVideo, setShowDoctorVideo] = useState(false);
+  const [currentVideoMessage, setCurrentVideoMessage] = useState(null);
+  
+  const { authenticatedActor } = useAuth();
 
   const { 
     prescription, 
@@ -84,21 +96,21 @@ function PatientDashboard({ user, showAlert }) {
 
   // Sync hook prescription -> redirect to history (only first time after claim)
   React.useEffect(() => {
-    if (hookPrescription && !redirectedAfterClaim) {
-      setSelectedPrescription(hookPrescription);
+    if (prescription && !redirectedAfterClaim) {
+      setSelectedPrescription(prescription);
       setRedirectedAfterClaim(true);
       // Put in history tab so user sees claimed entry
       setActiveTab('history');
       showAlert && showAlert('success', 'Prescription claimed and added to your history.');
       if (user) sessionUtils.saveSession(user, 'history');
     }
-  }, [hookPrescription, redirectedAfterClaim, user, showAlert]);
+  }, [prescription, redirectedAfterClaim, user, showAlert]);
 
   // Sync hook history into local UI (so PrescriptionHistory component shows it)
   React.useEffect(() => {
     // when backend/history changes, if currently viewing history keep it up-to-date
-    // we simply rely on hookPrescriptionHistory in render
-  }, [hookPrescriptionHistory]);
+    // we simply rely on prescriptionHistory in render
+  }, [prescriptionHistory]);
 
   // handleAccessPrescription no longer needed (fetch handled inside PrescriptionAccess via hook) but kept if used elsewhere:
   const handleAccessPrescription = async (prescriptionId, prescriptionCode) => {
@@ -165,7 +177,7 @@ function PatientDashboard({ user, showAlert }) {
   const openAIAssistant = (specificContext = null, mode = 'general') => {
     let context;
     
-    const prescriptionForContext = hookPrescription || selectedPrescription;
+    const prescriptionForContext = prescription || selectedPrescription;
     
     if (mode === 'prescription' && prescriptionForContext) {
       const prescriptionText = `Patient: ${prescriptionForContext.patient_name}
@@ -173,7 +185,7 @@ Created: ${formatDate(prescriptionForContext.created_at)}
 Doctor Notes: ${prescriptionForContext.additional_notes || 'No additional notes'}
 
 Prescribed Medicines:
-${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom_dosage || m.medicine?.dosage || 'N/A'})
+${(medicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom_dosage || m.medicine?.dosage || 'N/A'})
   Instructions: ${m.custom_instructions || 'Take as prescribed'}
   Frequency: ${m.medicine?.frequency || 'N/A'}
   Duration: ${m.medicine?.duration || 'N/A'}
@@ -196,11 +208,19 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
       };
     }
     
+    console.log('LOG: Opening AI Chat with context:', context);
     setAiChatContext(context);
     setShowAIChat(true);
   };
 
   const sendMessage = async () => {
+    // Check if function was called without proper setup
+    if (typeof currentMessage === 'undefined') {
+      console.error('Chat functionality not fully initialized');
+      showAlert('error', 'Chat functionality not available. Please try again.');
+      return;
+    }
+    
     if (!currentMessage.trim()) return;
     
     if (!authenticatedActor) {
@@ -225,7 +245,7 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
         user_type: 'patient'
       };
       
-      const prescriptionForChat = selectedPrescription || hookPrescription;
+      const prescriptionForChat = selectedPrescription || prescription;
       
       if (activeTab === 'prescription' && prescriptionForChat) {
         // Get medicine details for context
@@ -323,6 +343,7 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
   };
 
   const closeAIAssistant = () => {
+    console.log('LOG: Closing AI Chat');
     setShowAIChat(false);
     setAiChatContext(null);
   };
@@ -361,7 +382,7 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
     { id: 'my_cases', icon: <i className="fa-solid fa-chart-bar" aria-hidden="true" />, label: 'My Cases' },
   ];
   // Do NOT auto add prescription tab unless claimed
-  if (hookPrescription && !sidebarItems.find(i => i.id === 'prescription')) {
+  if (prescription && !sidebarItems.find(i => i.id === 'prescription')) {
     const prescriptionTab = { id: 'prescription', icon: <i className="fa-solid fa-pills" aria-hidden="true" />, label: 'Current Prescription' };
     sidebarItems.splice(1, 0, prescriptionTab);
   }
@@ -425,117 +446,27 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
     </div>
   );
 
-  const renderHistoryContent = () => (
-    <div className="flex-1 bg-gray-50 overflow-auto">
-      <div className="max-w-7xl mx-auto p-6">
-        <PrescriptionHistory 
-          history={hookPrescriptionHistory || []}
-          onLoadFromHistory={handleLoadFromHistory}
-          formatDateShort={formatDateShort}
-        />
-      </div>
-    </div>
-  );
-
-  const renderChatContent = () => (
-    <div className="flex-1 bg-gray-50 overflow-auto">
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl"><i className="fa-solid fa-comments" aria-hidden="true" /></span>
-              <h2 className="text-xl font-semibold text-gray-900">AI Chat</h2>
-            </div>
-          </div>
-          <div className="p-6">
-            <div className="space-y-4">
-              {messages.map((msg, index) => (
-                <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-xs rounded-lg px-4 py-2 text-sm ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-900'}`}>
-                    {msg.content}
-                  </div>
-                </div>
-              ))}
-
-              {isTyping && (
-                <div className="flex justify-start">
-                  <div className="max-w-xs rounded-lg px-4 py-2 text-sm bg-gray-100 text-gray-900 animate-pulse">
-                    Typing...
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-4">
-              <textarea
-                value={currentMessage}
-                onChange={(e) => setCurrentMessage(e.target.value)}
-                className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none h-20"
-                placeholder="Ask something..."
-              ></textarea>
-            </div>
-
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                onClick={sendMessage}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Send
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Doctor Video Message */}
-        {showDoctorVideo && currentVideoMessage && (
-          <div className="mt-4">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-              <div className="p-6 border-b border-gray-200">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl"><i className="fa-solid fa-video" aria-hidden="true" /></span>
-                  <h2 className="text-xl font-semibold text-gray-900">Doctor's Video Message</h2>
-                </div>
-              </div>
-              <div className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full overflow-hidden">
-                    <img 
-                      src={currentVideoMessage?.doctor_photo || '/default-doctor.png'} 
-                      alt="Doctor"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-500">
-                      {currentVideoMessage.timestamp}
-                    </p>
-                    <p className="text-lg font-semibold text-gray-900">
-                      {currentVideoMessage.role === 'assistant' ? 'Dr. MedSeal' : 'You'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4">
-                  <video
-                    src={currentVideoMessage.content}
-                    controls
-                    className="w-full rounded-lg border border-gray-200"
-                  ></video>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
 
   const renderPrescriptionContent = () => {
     // derive activePrescription and activeMedicines here and reuse throughout the render
-    const activePrescription = hookPrescription || selectedPrescription;
-    const activeMedicines = hookMedicines || [];
+    const activePrescription = prescription || selectedPrescription;
+    const activeMedicines = medicines || [];
 
-    if (!activePrescription) return null;
+    if (!activePrescription) {
+      return (
+        <div className="flex-1 bg-gray-50 overflow-auto">
+          <div className="max-w-7xl mx-auto p-6">
+            <FallbackView
+              icon="prescription-bottle"
+              title="No Prescription Loaded" 
+              message="Please access a prescription first to view your medications."
+              actionText="Access Prescription"
+              onAction={() => setActiveTab('access')}
+            />
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="flex-1 bg-gray-50 overflow-auto">
@@ -658,6 +589,143 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
     </div>
   );
 
+  // Helper function to create a summary of the prescription for AI chat
+  const createPrescriptionSummary = () => {
+    const activePrescription = prescription || selectedPrescription;
+    if (!activePrescription) return "";
+    
+    return `Prescription for ${activePrescription.patient_name}
+    Created: ${formatDate(activePrescription.created_at)}
+    Medicines: ${(medicines || []).length}
+    Notes: ${activePrescription.additional_notes || 'No additional notes'}`;
+  };
+
+  // Improve renderHistoryContent to handle missing variables
+  const renderHistoryContent = () => (
+    <div className="flex-1 bg-gray-50 overflow-auto">
+      <div className="max-w-7xl mx-auto p-6">
+        {prescriptionHistory && prescriptionHistory.length > 0 ? (
+          <PrescriptionHistory 
+            history={prescriptionHistory}
+            onLoadFromHistory={handleLoadFromHistory}
+            formatDateShort={formatDateShort}
+          />
+        ) : (
+          <FallbackView 
+            icon="history"
+            title="No Prescription History" 
+            message="You haven't accessed any prescriptions yet. Access a prescription first to see it in your history."
+            actionText="Access Prescription"
+            onAction={() => setActiveTab('access')}
+          />
+        )}
+      </div>
+    </div>
+  );
+
+  // Improve renderChatContent to handle missing variables
+  const renderChatContent = () => (
+    <div className="flex-1 bg-gray-50 overflow-auto">
+      <div className="max-w-7xl mx-auto p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl"><i className="fa-solid fa-comments" aria-hidden="true" /></span>
+              <h2 className="text-xl font-semibold text-gray-900">AI Chat</h2>
+            </div>
+          </div>
+          <div className="p-6">
+            <div className="space-y-4">
+              {messages && messages.length > 0 ? (
+                messages.map((msg, index) => (
+                  <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-xs md:max-w-md rounded-lg px-4 py-2 text-sm ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-900'}`}>
+                      {msg.content}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <FAIcon name="comments" className="text-4xl mb-2" />
+                  <p>Start a conversation with the AI health assistant</p>
+                </div>
+              )}
+
+              {isTyping && (
+                <div className="flex justify-start">
+                  <div className="max-w-xs rounded-lg px-4 py-2 text-sm bg-gray-100 text-gray-900 animate-pulse">
+                    Typing...
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4">
+              <textarea
+                value={currentMessage}
+                onChange={(e) => setCurrentMessage(e.target.value)}
+                className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none h-20"
+                placeholder="Ask something about your health or medications..."
+              ></textarea>
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={sendMessage}
+                disabled={!currentMessage.trim()}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Doctor Video Message */}
+        {showDoctorVideo && currentVideoMessage && (
+          <div className="mt-4">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl"><i className="fa-solid fa-video" aria-hidden="true" /></span>
+                  <h2 className="text-xl font-semibold text-gray-900">Doctor's Video Message</h2>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full overflow-hidden">
+                    <img 
+                      src={currentVideoMessage?.doctor_photo || '/default-doctor.png'} 
+                      alt="Doctor"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-500">
+                      {currentVideoMessage.timestamp}
+                    </p>
+                    <p className="text-lg font-semibold text-gray-900">
+                      {currentVideoMessage.role === 'assistant' ? 'Dr. MedSeal' : 'You'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <video
+                    src={currentVideoMessage.content}
+                    controls
+                    className="w-full rounded-lg border border-gray-200"
+                  ></video>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // Improved tab content rendering with better error handling
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
@@ -900,7 +968,7 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
 
           {activeTab === 'prescription' && (
             <div className="p-6 space-y-6">
-              {hasPrescription && prescription && medicines ? (
+              {hasPrescription && (prescription || selectedPrescription) && medicines && medicines.length > 0 ? (
                 <>
                   {/* Prescription Header */}
                   <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -910,9 +978,9 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
                         <div>
                           <h2 className="text-xl font-semibold text-gray-900">Your Prescription</h2>
                           <p className="text-gray-600">
-                            Issued on {formatDate(prescription.created_at)}
-                            {prescription.accessed_at && (
-                              <span className="ml-2 text-green-600">• Accessed on {formatDate(prescription.accessed_at)}</span>
+                            Issued on {formatDate((prescription || selectedPrescription).created_at)}
+                            {(prescription || selectedPrescription).accessed_at && (
+                              <span className="ml-2 text-green-600">• Accessed on {formatDate((prescription || selectedPrescription).accessed_at)}</span>
                             )}
                           </p>
                         </div>
@@ -937,13 +1005,13 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
                       </div>
                     </div>
 
-                    {prescription.additional_notes && (
+                    {(prescription || selectedPrescription).additional_notes && (
                       <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                         <div className="flex items-center gap-2 mb-1">
                           <FAIcon name="sticky-note" className="text-amber-600" />
                           <h4 className="font-semibold text-amber-800">Doctor's Notes</h4>
                         </div>
-                        <p className="text-amber-700">{prescription.additional_notes}</p>
+                        <p className="text-amber-700">{(prescription || selectedPrescription).additional_notes}</p>
                       </div>
                     )}
                   </div>
@@ -955,10 +1023,10 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
                     </h3>
                     {medicines.map((medicine, index) => (
                       <MedicationCard
-                        key={`${medicine.medicine_id}_${index}`}
+                        key={`${medicine.medicine_id || 'unknown'}_${index}`}
                         medicine={medicine}
                         index={index}
-                        onViewGuide={viewMedicineGuide}
+                        onViewGuide={handleViewGuide}
                         onAskAI={openAIAssistant}
                         expandedAccordions={expandedAccordions}
                         onToggleAccordion={toggleAccordion}
@@ -967,25 +1035,19 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
                   </div>
                 </>
               ) : (
-                <div className="text-center py-12">
-                  <div className="text-6xl mb-4">
-                    <FAIcon name="prescription-bottle" className="inline-block text-gray-300" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-500 mb-2">No Prescription Loaded</h3>
-                  <p className="text-gray-500 mb-6">
-                    Please access a prescription first to view your medications.
-                  </p>
-                  <button
-                    onClick={() => setActiveTab('access')}
-                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Access Prescription
-                  </button>
-                </div>
+                <FallbackView
+                  icon="prescription-bottle"
+                  title="No Prescription Loaded" 
+                  message="Please access a prescription first to view your medications."
+                  actionText="Access Prescription"
+                  onAction={() => setActiveTab('access')}
+                />
               )}
             </div>
           )}
 
+          {activeTab === 'history' && renderHistoryContent()}
+          {activeTab === 'chat' && renderChatContent()}
           {activeTab === 'case_submission' && renderCaseSubmissionContent()}
           {activeTab === 'my_cases' && renderMyCasesContent()}
         </div>
@@ -998,9 +1060,18 @@ ${(hookMedicines || []).map(m => `- ${m.medicine?.name || 'Unknown'} (${m.custom
           contextData={aiChatContext}
           onClose={closeAIAssistant}
           title="MedSeal Health Partner - Your Health Guide"
-          initialMode={(hookPrescription || selectedPrescription) ? 'prescription' : 'general'}
+          initialMode={(prescription || selectedPrescription) ? 'prescription' : 'general'}
         />
       )}
+
+      {/* AI Chat quick access button */}
+      <button
+        onClick={() => openAIAssistant(null, 'general')}
+        className="fixed bottom-4 right-4 bg-purple-600 text-white p-4 rounded-full shadow-lg hover:bg-purple-700 z-30"
+        title="Open AI Chat"
+      >
+        <FAIcon name="robot" className="text-xl" />
+      </button>
     </div>
   );
 }

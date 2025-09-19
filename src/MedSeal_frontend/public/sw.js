@@ -1,4 +1,4 @@
-const CACHE_NAME = 'medseal-v1';
+const CACHE_NAME = 'medseal-v3';
 const urlsToCache = [
   '/',
   '/static/js/bundle.js',

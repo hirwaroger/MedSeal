@@ -14,3 +14,8 @@ ic-cdk = "0.17"
 ic-cdk-timers = "0.11" # Feel free to remove this dependency if you don't need timers
 serde = { version = "1.0", features = ["derive"] }
 ic-llm = "1.1.0"
+
+# NOTE:
+# If you need to override transitive dependencies (e.g., slab) for audit purposes,
+# add a [patch.crates-io] section in the workspace root: /root/MedSeal/Cargo.toml
+# Patches in this file are ignored by Cargo because this is not the workspace root.

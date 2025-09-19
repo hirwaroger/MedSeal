@@ -40,6 +40,16 @@ pub fn add_medicine(request: CreateMedicineRequest) -> Result<Medicine> {
 }
 
 #[ic_cdk::query]
+pub fn get_all_medicines() -> Vec<Medicine> {
+    storage::get_all_medicines()
+}
+
+#[ic_cdk::query]
+pub fn get_medicine(medicine_id: String) -> Option<Medicine> {
+    storage::get_medicine(&medicine_id)
+}
+
+#[ic_cdk::query]
 pub fn get_doctor_medicines(doctor_id: String) -> Vec<Medicine> {
     storage::get_doctor_medicines(&doctor_id)
 }
@@ -47,11 +57,6 @@ pub fn get_doctor_medicines(doctor_id: String) -> Vec<Medicine> {
 #[ic_cdk::query]
 pub fn get_doctor_prescriptions(doctor_id: String) -> Vec<Prescription> {
     storage::get_doctor_prescriptions(&doctor_id)
-}
-
-#[ic_cdk::query]
-pub fn get_medicine(medicine_id: String) -> Option<Medicine> {
-    storage::get_medicine(&medicine_id)
 }
 
 #[ic_cdk::query]
@@ -142,10 +147,4 @@ pub fn toggle_medicine_status(medicine_id: String) -> Result<Medicine> {
     } else {
         Err("Failed to toggle medicine status".to_string())
     }
-}
-
-// Debug function
-#[ic_cdk::query]
-pub fn get_all_medicines_debug() -> Vec<Medicine> {
-    storage::get_all_medicines()
 }

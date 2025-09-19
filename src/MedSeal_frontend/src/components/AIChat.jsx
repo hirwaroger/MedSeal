@@ -341,7 +341,7 @@ I can recommend appropriate medicines from your repository and suggest dosages, 
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-2 sm:p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[95vh] sm:h-[90vh] flex flex-col lg:flex-row overflow-hidden">
         {/* Left: Chat area */}
         <div className="flex-1 lg:w-2/3 flex flex-col min-h-0">

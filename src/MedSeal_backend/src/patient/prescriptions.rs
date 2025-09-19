@@ -57,3 +57,22 @@ pub fn get_prescription_legacy(prescription_code: String, patient_contact: Strin
         None => Err("Prescription not found".to_string()),
     }
 }
+
+// NOTE: Avoid naming collisions with doctor::prescriptions::get_doctor_prescriptions
+// If a function with the same canister method name existed here, rename it to a patient-specific API.
+// Old (remove or rename if present):
+// #[ic_cdk::query]
+// pub fn get_doctor_prescriptions(doctor_id: String) -> Vec<Prescription> {
+//     // ...existing logic...
+// }
+
+// New: patient-focused query name (example; keep body unchanged)
+// Remove this duplicate import line:
+// use crate::shared::types::Prescription;
+
+// Return prescriptions for a patient (by principal, contact or name)
+#[ic_cdk::query]
+pub fn get_patient_prescriptions(patient_id: String) -> Vec<Prescription> {
+	// patient_id can be a principal, contact, or name (best-effort match)
+	storage::get_patient_prescriptions(&patient_id)
+}

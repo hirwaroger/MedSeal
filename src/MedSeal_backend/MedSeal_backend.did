@@ -44,12 +44,9 @@ type Prescription = record {
   doctor_id: text;
 };
 
-type VerificationType = variant { Doctor; NGO; };
-
 type VerificationRequest = record {
   id: text;
-  requester_id: text;
-  verification_type: VerificationType;
+  doctor_id: text;
   institution_name: text;
   institution_website: text;
   license_authority: text;
@@ -212,18 +209,21 @@ service : {
   register_user_with_principal: (record { name: text; email: text; role: UserRole; license_number: text; user_principal: text }) -> (Result_User);
   register_user_simple: (text, text, UserRole, text) -> (Result_User);
   get_user: (text) -> (opt User) query;
-  list_user_principals: () -> (vec PrincipalEntry) query; // (principal_ent, user_id, email)
+  list_user_principals: () -> (vec PrincipalEntry) query;
 
-  // Prescriptions / Medicines - Updated signatures
-  create_prescription: (CreatePrescriptionRequest) -> (Result_Text);
-  get_prescription: (text, text) -> (Result_Prescription); // prescription_id, verification_code
-  get_prescription_by_code: (text) -> (opt Prescription) query;
-  get_prescription_legacy: (text, text) -> (Result_Prescription) query; // For backward compatibility
-  get_all_medicines: () -> (vec Medicine) query;
-  get_doctor_medicines: (text) -> (vec Medicine) query;
-  get_doctor_prescriptions: (text) -> (vec Prescription) query;
+  // Medicine functions
   add_medicine: (record { name: text; dosage: text; frequency: text; duration: text; side_effects: text; guide_text: text; guide_source: text }) -> (Result_Medicine);
+  get_all_medicines: () -> (vec Medicine) query;
+  get_medicine: (text) -> (opt Medicine) query;
+  get_doctor_medicines: (text) -> (vec Medicine) query;
   toggle_medicine_status: (text) -> (Result_Medicine);
+
+  // Prescriptions functions
+  create_prescription: (CreatePrescriptionRequest) -> (Result_Text);
+  get_prescription: (text, text) -> (Result_Prescription);
+  get_prescription_by_code: (text) -> (opt Prescription) query;
+  get_prescription_legacy: (text, text) -> (Result_Prescription) query;
+  get_doctor_prescriptions: (text) -> (vec Prescription) query; // Changed from get_doctor_prescriptions
 
   // Admin functions
   admin_exists: () -> (bool) query;
@@ -232,13 +232,10 @@ service : {
   get_user_stats: (text) -> (Result_UserStats) query;
   get_system_overview: () -> (Result_SystemOverview) query;
 
-  // Verification functions - updated
+  // Verification functions
   submit_verification_request: (SubmitVerificationRequest) -> (Result_Text);
-  submit_doctor_verification_request: (SubmitVerificationRequest) -> (Result_Text);
-  submit_ngo_verification_request: (SubmitVerificationRequest) -> (Result_Text);
+  admin_process_verification_submission: (SubmitVerificationRequest) -> (Result_Text);
   get_all_verification_requests: () -> (Result_VecVerification) query;
-  get_doctor_verification_requests: () -> (Result_VecVerification) query;
-  get_ngo_verification_requests: () -> (Result_VecVerification) query;
   get_pending_verification_requests: () -> (Result_VecVerification) query;
   get_verification_request: (text) -> (Result_Verification) query;
   process_verification_request: (ProcessVerificationRequest) -> (Result_Text);

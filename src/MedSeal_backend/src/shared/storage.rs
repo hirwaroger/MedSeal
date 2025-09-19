@@ -95,6 +95,12 @@ pub fn get_medicine(medicine_id: &str) -> Option<Medicine> {
     })
 }
 
+pub fn get_all_medicines() -> Vec<Medicine> {
+    MEDICINES.with(|medicines| {
+        medicines.borrow().values().cloned().collect()
+    })
+}
+
 pub fn get_doctor_medicines(doctor_id: &str) -> Vec<Medicine> {
     MEDICINES.with(|medicines| {
         medicines.borrow()
@@ -105,17 +111,13 @@ pub fn get_doctor_medicines(doctor_id: &str) -> Vec<Medicine> {
     })
 }
 
-pub fn get_all_medicines() -> Vec<Medicine> {
-    MEDICINES.with(|medicines| {
-        medicines.borrow().values().cloned().collect()
-    })
-}
-
-pub fn update_medicine_in_storage(medicine_id: &str, updated_medicine: Medicine) -> bool {
-    MEDICINES.with(|medicines| {
-        let mut medicines_map = medicines.borrow_mut();
-        if medicines_map.contains_key(medicine_id) {
-            medicines_map.insert(medicine_id.to_string(), updated_medicine);
+// Update an existing medicine (returns true if updated, false if not found)
+pub fn update_medicine_in_storage(medicine_id: &str, updated: Medicine) -> bool {
+    MEDICINES.with(|meds| {
+        let mut map = meds.borrow_mut();
+        if map.contains_key(medicine_id) {
+            // Ensure key consistency
+            map.insert(medicine_id.to_string(), Medicine { id: medicine_id.to_string(), ..updated });
             true
         } else {
             false
@@ -409,6 +411,33 @@ pub fn get_contributions_by_user(user_principal: &str) -> Vec<Contribution> {
         contributions.borrow()
             .values()
             .filter(|contrib| contrib.contributor_principal == user_principal)
+            .cloned()
+            .collect()
+    })
+}
+
+pub fn get_patient_prescriptions(patient_id_or_key: &str) -> Vec<Prescription> {
+    // Supports matching against: patient_principal (preferred), patient_contact, or patient_name
+    PRESCRIPTIONS.with(|pres| {
+        pres.borrow()
+            .values()
+            .filter(|p| {
+                // principal exact match
+                if let Some(pr) = &p.patient_principal {
+                    if pr == patient_id_or_key {
+                        return true;
+                    }
+                }
+                // contact exact match
+                if p.patient_contact == patient_id_or_key {
+                    return true;
+                }
+                // name fallback (loose)
+                if p.patient_name == patient_id_or_key {
+                    return true;
+                }
+                false
+            })
             .cloned()
             .collect()
     })
