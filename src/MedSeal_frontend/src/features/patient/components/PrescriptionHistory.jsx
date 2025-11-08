@@ -47,3 +47,4 @@ function PrescriptionHistory({ history, onLoadFromHistory, formatDateShort }) {
 }
 
 export default PrescriptionHistory;
+

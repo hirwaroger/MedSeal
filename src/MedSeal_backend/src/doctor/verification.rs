@@ -40,3 +40,4 @@ pub fn submit_verification_request(request: SubmitVerificationRequest) -> Result
     storage::store_verification_request(verification_request);
     Ok(request_id)
 }
+

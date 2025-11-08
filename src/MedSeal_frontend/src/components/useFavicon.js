@@ -14,3 +14,4 @@ export function useFavicon(href = '/favicon.png') {
     }
   }, [href]);
 }
+
