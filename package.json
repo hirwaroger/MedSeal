@@ -7,10 +7,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
+    "build": "node init && npm run build --workspaces --if-present",
     "prebuild": "npm run prebuild --workspaces --if-present",
     "pretest": "npm run prebuild --workspaces --if-present",
-    "start": "npm start --workspaces --if-present",
+    "start": "node init && npm start --workspaces --if-present",
     "test": "npm test --workspaces --if-present"
   },
   "type": "module",

@@ -1282,3 +1282,4 @@ For technical support or questions:
 **Experience the platform**: [Live Demo](https://dg7i5-5aaaa-aaaai-atlia-cai.icp0.io)
 
 For urgent deployment issues, contact: emergency-support@medseal.health
+

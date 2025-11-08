@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "setup": "npm i && dfx canister create MedSeal_backend && dfx generate MedSeal_backend && dfx deploy",
-    "start": "vite --port 3000",
+    "start": "node init && vite --port 3000",
     "prebuild": "dfx generate",
-    "build": "tsc && vite build",
+    "build": "node init && tsc && vite build",
     "format": "prettier --write \"src/**/*.{json,js,jsx,ts,tsx,css}\""
   },
   "dependencies": {

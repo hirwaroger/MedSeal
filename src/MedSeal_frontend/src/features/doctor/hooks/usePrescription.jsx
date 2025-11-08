@@ -122,3 +122,4 @@ export function usePrescription(user, showAlert) {
     loadPrescriptions
   };
 }
+

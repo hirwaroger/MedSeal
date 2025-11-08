@@ -11,3 +11,4 @@ export default function FAIcon({ name, className = '', title, ...props }) {
     />
   );
 }
+

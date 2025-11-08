@@ -91,3 +91,4 @@ function Alert({ type = 'info', message, onClose, autoClose = false, duration = 
 }
 
 export default Alert;
+

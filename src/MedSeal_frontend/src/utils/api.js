@@ -46,3 +46,4 @@ export const formatApiResponse = (result) => {
         return { success: false, error: 'Invalid response format' };
     }
 };
+

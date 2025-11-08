@@ -24,3 +24,4 @@ function Dialog({ open, onClose, title, children, maxWidth = 'max-w-2xl' }) {
 }
 
 export default Dialog;
+
